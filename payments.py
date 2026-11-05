@@ -253,7 +253,7 @@ async def _cp_create(donation_id: str, amount: float, currency: str, assets: str
     if assets.strip():
         params["accepted_assets"] = assets.replace(" ", "")
     if PUBLIC_URL.startswith("https://"):  # адрес только из настроек сервера, не от клиента
-        params.update(paid_btn_name="callback", paid_btn_url=f"{PUBLIC_URL}/donate?donation={donation_id}")
+        params.update(paid_btn_name="callback", paid_btn_url=f"{PUBLIC_URL}/?donation={donation_id}")
     inv = (await _cp_call("createInvoice", params, post=True))["result"]
     url = inv.get("bot_invoice_url") or inv.get("pay_url")
     parts = urlsplit(str(url))
@@ -297,7 +297,7 @@ async def _yk_create(donation_id: str, amount: float, currency: str) -> tuple[st
         raise provider_fail("ЮKassa", "нет confirmation_token")
     return data["id"], {
         "type": "widget", "confirmation_token": token,
-        "return_url": f"{PUBLIC_URL}/donate?donation={donation_id}",  # только из настроек сервера
+        "return_url": f"{PUBLIC_URL}/?donation={donation_id}",  # только из настроек сервера
     }
 
 

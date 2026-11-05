@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Поддержать стримера</title>
+{{HEAD}}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;800&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
@@ -14,9 +14,18 @@
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px;
+  body { margin: 0; min-height: 100vh; display: flex; justify-content: center; padding: 20px;
     background: var(--bg); color: var(--text); font-family: "Onest", system-ui, sans-serif; }
-  main { width: 100%; max-width: 460px; }
+  .page { width: 100%; max-width: 460px; }
+  main { display: grid; gap: 16px; }
+  .faq { padding: 8px 2px 0; }
+  .faq h2 { font-family: "Unbounded", "Onest", sans-serif; font-size: 18px; margin: 12px 0 4px; }
+  .faq h3 { font-size: 15px; margin: 18px 0 4px; }
+  .faq p { color: var(--muted); margin: 0; font-size: 15px; }
+  footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
+  .links { list-style: none; display: flex; gap: 16px; padding: 0; margin: 0 0 8px; }
+  .links a { color: var(--accent); display: inline-block; padding: 10px 0; }
+  .ts-on { min-height: 65px; }
   h1 { font-family: "Unbounded", "Onest", sans-serif; font-weight: 800; font-size: 26px; margin: 0 0 6px; overflow-wrap: anywhere; }
   .sub { color: var(--muted); margin: 0 0 22px; }
   .box { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 16px; }
@@ -71,48 +80,62 @@
 </style>
 </head>
 <body>
-<main>
-  <h1 id="title">Поддержать стримера</h1>
-  <p class="sub">Сообщение появится на стриме сразу после оплаты.</p>
+<div class="page">
+  <header>
+    <h1 id="title">{{H1}}</h1>
+    <p class="sub">{{INTRO}}</p>
+  </header>
+  <noscript><p class="sub">Для оплаты нужен включённый JavaScript.</p></noscript>
+  <main>
+    <form id="form" class="box" novalidate>
+      <label for="amount">Сумма
+        <div class="amount"><input id="amount" type="number" inputmode="decimal" step="any" min="{{MIN}}" value="{{AMOUNT}}" required><span id="sym">{{SYMBOL}}</span></div>
+      </label>
+      <div class="chips" id="chips" role="group" aria-label="Быстрый выбор суммы">{{CHIPS}}</div>
+      <div class="hint" id="minhint">{{MINHINT}}</div>
 
-  <form id="form" class="box" novalidate>
-    <label for="amount">Сумма
-      <div class="amount"><input id="amount" type="number" inputmode="decimal" step="any" min="1" required><span id="sym">₽</span></div>
-    </label>
-    <div class="chips" id="chips" role="group" aria-label="Быстрый выбор суммы"></div>
-    <div class="hint" id="minhint"></div>
+      <fieldset>
+        <legend>Способ оплаты</legend>
+        <div class="methods" id="methods">{{METHODS}}</div>
+      </fieldset>
 
-    <fieldset>
-      <legend>Способ оплаты</legend>
-      <div class="methods" id="methods"></div>
-    </fieldset>
+      <label for="name">Ваше имя
+        <input id="name" type="text" maxlength="30" placeholder="Аноним" autocomplete="nickname">
+      </label>
+      <label for="msg">Сообщение
+        <textarea id="msg" maxlength="{{MAXLEN}}" placeholder="Что хотите сказать?"></textarea>
+        <span class="hint"><span></span><span id="count">{{COUNT}}</span></span>
+      </label>
+      <div class="hp" aria-hidden="true"><label>Сайт<input id="website" name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+      <div id="ts"{{TS_CLASS}}></div>
+      <p id="err" role="alert">{{ERR}}</p>
+      <button class="pay" id="btn" type="submit"{{BTN_DISABLED}}>{{BTN}}</button>
+    </form>
 
-    <label for="name">Ваше имя
-      <input id="name" type="text" maxlength="30" placeholder="Аноним" autocomplete="nickname">
-    </label>
-    <label for="msg">Сообщение
-      <textarea id="msg" placeholder="Что хотите сказать?"></textarea>
-      <span class="hint"><span></span><span id="count"></span></span>
-    </label>
-    <div class="hp" aria-hidden="true"><label>Сайт<input id="website" name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
-    <div id="ts"></div>
-    <p id="err" role="alert"></p>
-    <button class="pay" id="btn" type="submit">Поддержать</button>
-  </form>
+    <section id="payview" class="box" hidden aria-live="polite">
+      <div id="checkout"></div>
+      <div class="status"><span class="spin" aria-hidden="true"></span><span id="statustext">Ждём подтверждения платежа…</span></div>
+      <button class="ghost" id="cancel" type="button">Изменить сумму или способ</button>
+    </section>
 
-  <section id="payview" class="box" hidden aria-live="polite">
-    <div id="checkout"></div>
-    <div class="status"><span class="spin" aria-hidden="true"></span><span id="statustext">Ждём подтверждения платежа…</span></div>
-    <button class="ghost" id="cancel" type="button">Изменить сумму или способ</button>
-  </section>
+    <section id="resultview" class="box result" hidden aria-live="polite">
+      <div id="icon"></div>
+      <h2 id="rtitle" tabindex="-1"></h2>
+      <p id="rtext"></p>
+      <button class="pay" id="again" type="button"></button>
+    </section>
 
-  <section id="resultview" class="box result" hidden aria-live="polite">
-    <div id="icon"></div>
-    <h2 id="rtitle" tabindex="-1"></h2>
-    <p id="rtext"></p>
-    <button class="pay" id="again" type="button"></button>
-  </section>
-</main>
+    <section class="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title">Вопросы и ответы</h2>
+      {{FAQ}}
+    </section>
+  </main>
+  <footer>
+    {{LINKS}}
+    <p>Имя и сообщение показываются в эфире стрима.</p>
+  </footer>
+</div>
+<script type="application/json" id="cfg">{{CFG}}</script>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -128,38 +151,16 @@ function show(view) {
 function setError(t) { $("err").textContent = t || ""; }
 function fmt(n) { return String(Number(n)).replace(".", ","); }
 
-// ───── загрузка настроек ─────
-fetch("/api/public-config").then(r => r.json()).then(cfg => {
-  state.cfg = cfg;
-  const name = cfg.streamer || "стримера";
-  $("title").textContent = "Поддержать " + name;
-  document.title = "Поддержать " + name;
-  $("sym").textContent = cfg.symbol;
-  $("minhint").textContent = `Минимум ${fmt(cfg.min_amount)} ${cfg.symbol}`;
-  $("amount").min = cfg.min_amount;
-  $("amount").value = Math.max(cfg.min_amount, 300);
-  $("msg").maxLength = cfg.max_message_len;
-  [100, 300, 500, 1000].filter(v => v >= cfg.min_amount).forEach(v => {
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = `${v} ${cfg.symbol}`; b.dataset.v = v;
-    b.onclick = () => { $("amount").value = v; changed(); };
-    $("chips").appendChild(b);
-  });
-  if (!cfg.methods.length) { setError("Приём донатов пока не настроен."); $("btn").disabled = true; }
-  cfg.methods.forEach((m, i) => {
-    const l = document.createElement("label"); l.className = "method";
-    const inp = document.createElement("input"); inp.type = "radio"; inp.name = "method"; inp.value = m.id; inp.checked = i === 0;
-    inp.addEventListener("change", changed);
-    const card = document.createElement("span"); card.className = "card";
-    const t = document.createElement("span"); t.textContent = m.label;
-    const s = document.createElement("small"); s.textContent = m.hint;
-    card.append(t, s); l.append(inp, card); $("methods").appendChild(l);
-  });
+// ───── настройки страницы лежат в самом HTML (блок #cfg), отдельный запрос не нужен ─────
+function init() {
+  state.cfg = JSON.parse($("cfg").textContent);
+  document.querySelectorAll("#chips button").forEach(b => { b.onclick = () => { $("amount").value = b.dataset.v; changed(); }; });
+  document.querySelectorAll("input[name=method]").forEach(r => r.addEventListener("change", changed));
   changed(); updateCount();
-  if (cfg.turnstile_site_key) initTurnstile(cfg.turnstile_site_key);
+  if (state.cfg.turnstile_site_key) initTurnstile(state.cfg.turnstile_site_key);
   const resume = new URLSearchParams(location.search).get("donation");
   if (resume && /^[0-9a-f]{32}$/.test(resume)) resumePayment(resume);
-});
+}
 
 function amountValue() { return parseFloat(String($("amount").value).replace(",", ".")); }
 function changed() {
@@ -335,6 +336,7 @@ function reset() {
 }
 $("again").addEventListener("click", reset);
 $("cancel").addEventListener("click", reset);
+init();
 </script>
 </body>
 </html>

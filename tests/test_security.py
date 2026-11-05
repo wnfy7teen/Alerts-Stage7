@@ -20,7 +20,7 @@ GIF = b"GIF89a" + b"\x00" * 30
 
 # ───── заголовки и CSP ─────
 def test_headers_and_csp_nonce(client):
-    a, b = client.get("/donate"), client.get("/donate")
+    a, b = client.get("/"), client.get("/")
     csp = a.headers["content-security-policy"]
     nonce = re.search(r"'nonce-([^']+)'", csp).group(1)
     assert f'nonce="{nonce}"' in a.text and nonce not in b.headers["content-security-policy"]
@@ -79,7 +79,7 @@ def test_admin_csrf(client):
 def test_admin_ip_allowlist(client, monkeypatch):
     monkeypatch.setattr(sec, "ADMIN_ALLOWED", ["10.0.0.0/8"])
     assert client.get("/admin", auth=AUTH).status_code == 404
-    assert client.get("/donate").status_code == 200
+    assert client.get("/").status_code == 200
 
 
 def test_client_ip_behind_proxy(monkeypatch):

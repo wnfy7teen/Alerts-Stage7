@@ -74,6 +74,19 @@ Windows: запустите `start.bat`. Другие системы: `python se
 - Приложение не использует cookie и сессии. Админка работает на Basic Auth только по HTTPS (с HSTS).
 - Озвучка отправляет текст сообщений на серверы Microsoft (edge-tts). Если это неприемлемо, отключите озвучку в админке.
 
+## Поиск, ИИ и красивая ссылка в Telegram
+Главная страница `/` и есть страница доната (старый адрес `/donate` перенаправляет на неё). Текст, способы оплаты и вопросы-ответы отрисовываются на сервере, поэтому их видят роботы без JavaScript.
+- Что формируется автоматически из настроек сайта: `title` (до 60 символов), `description` (до 160), канонический адрес, Open Graph и Twitter Card, разметка JSON-LD (Person с DonateAction, WebSite, WebPage, FAQPage), `/robots.txt` (разрешены GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, anthropic-ai, PerplexityBot, Google-Extended, Bingbot, Applebot-Extended; закрыты админка, оверлей и API), `/sitemap.xml`, `/llms.txt`.
+- Факты в тексте и FAQ (минимальная сумма, способы оплаты, озвучка) берутся из настроек админки и меняются вместе с ними.
+- Имя, ссылки и текст: `STREAMER_NAME`, `SAME_AS` (ссылки на Twitch, Telegram и т.д.), `ABOUT_TEXT`. Обязательно задайте `PUBLIC_URL`: от него строятся все адреса в разметке.
+- Обложка для ссылок (1200×630) и иконка лежат в `static/`. Пересоздать под другое имя или оттенок розового: `python scripts/make_brand_assets.py --name ИМЯ --pink "#F8C8DC"`.
+
+После выкладки проверьте:
+1. `curl -A "GPTBot" -I https://ваш-домен/` отвечает 200 и `text/html`. Если домен за Cloudflare, проверьте в его настройках блокировку ИИ-ботов (раздел Security, Bots или AI Crawl Control): она может блокировать роботов вопреки `robots.txt`.
+2. Отправьте ссылку в Telegram. Telegram запоминает превью, поэтому после любых правок обложки или текста отправьте ссылку боту @WebpageBot, он сбросит кэш.
+3. Отладчик репостов Facebook (Sharing Debugger) и проверка карточки Twitter/X покажут, как ссылка выглядит в других сервисах.
+4. Добавьте сайт в Google Search Console и Яндекс Вебмастер и укажите `https://ваш-домен/sitemap.xml`.
+
 ## Деплой на VPS за 10 минут (Docker + Caddy)
 Нужны: VPS с Ubuntu 22.04 или новее, домен.
 1. Создайте A-запись домена на IP сервера.
@@ -99,7 +112,7 @@ Windows: запустите `start.bat`. Другие системы: `python se
 ## Тесты и проверки
 ```
 pip install -r requirements-dev.txt
-python -m pytest                        # 43 теста: оплата, webhook-и, безопасность
+python -m pytest                        # 60 тестов: оплата, webhook-и, безопасность, SEO
 ruff check . && mypy                    # линтер с правилами безопасности и проверка типов
 pip-audit -r requirements.lock          # известные уязвимости зависимостей
 pip install -r requirements-e2e.txt && python -m playwright install chromium && python -m pytest e2e   # тесты в браузере
@@ -110,4 +123,4 @@ pip install -r requirements-e2e.txt && python -m playwright install chromium && 
 Голос синтезируется библиотекой edge-tts (серверам Microsoft нужен доступ из вашей сети). Если озвучка не создалась, оверлей пробует голос браузера, но в OBS он часто молчит. TTS читает сообщения зрителей как есть, фильтра мата нет. Учитывайте правила Twitch: то, что прозвучало в эфире, считается вашим контентом. Ссылки из текста озвучки вырезаются.
 
 ## Файлы
-`server.py` (маршруты и админка), `payments.py` (оплата), `security.py` (защита), `static/` (страницы), `scripts/backup.py` (копии), `tests/` и `e2e/` (тесты), `Dockerfile`, `docker-compose.yml`, `Caddyfile` (деплой). Настройки хранятся в `config.json`, история в `donations.db`, ваши гифки и звуки в `media/`.
+`server.py` (маршруты и админка), `payments.py` (оплата), `security.py` (защита), `seo.py` (поиск и ссылки), `static/` (страницы), `scripts/backup.py` (копии), `tests/` и `e2e/` (тесты), `Dockerfile`, `docker-compose.yml`, `Caddyfile` (деплой). Настройки хранятся в `config.json`, история в `donations.db`, ваши гифки и звуки в `media/`.

@@ -30,7 +30,7 @@ def test_yookassa_widget_checkout_and_idempotency(client, fake):
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["checkout"]["type"] == "widget" and d["checkout"]["confirmation_token"] == "ct-1"
-    assert d["checkout"]["return_url"] == f"https://example.test/donate?donation={d['donation_id']}"
+    assert d["checkout"]["return_url"] == f"https://example.test/?donation={d['donation_id']}"
     again = donate(client)  # двойной клик с тем же ключом
     assert again.json()["donation_id"] == d["donation_id"] and len(fake.yk_created) == 1
     assert donate(client, amount=999).status_code == 409  # тот же ключ, другие параметры

@@ -15,7 +15,7 @@ def collect_problems(page):
 
 def test_donate_page_loads_under_csp(page, base_url):
     problems = collect_problems(page)
-    page.goto(base_url + "/donate")
+    page.goto(base_url + "/")
     expect(page.get_by_role("heading", level=1)).to_contain_text("Поддержать")
     expect(page.get_by_role("button", name=re.compile(r"Поддержать на 300"))).to_be_visible()
     page.get_by_role("button", name="500 ₽").click()
@@ -37,7 +37,7 @@ def test_crypto_payment_stays_on_site_and_shows_thanks(page, base_url):
     page.route("**/api/payments/status/*", lambda route: route.fulfill(
         json={"id": DID, "status": status["value"], "amount": 300, "currency": "RUB", "provider": "nowpayments"}))
     problems = collect_problems(page)
-    page.goto(base_url + "/donate")
+    page.goto(base_url + "/")
     page.get_by_text("Криптовалюта", exact=True).click()
     page.get_by_role("button", name=re.compile(r"Поддержать на")).click()
     expect(page.get_by_text(ADDRESS)).to_be_visible()
@@ -50,7 +50,7 @@ def test_crypto_payment_stays_on_site_and_shows_thanks(page, base_url):
 
 def test_server_error_is_shown_and_form_stays_usable(page, base_url):
     page.route("**/api/donations", lambda route: route.fulfill(status=429, json={"detail": "Слишком много попыток, подождите несколько минут"}))
-    page.goto(base_url + "/donate")
+    page.goto(base_url + "/")
     button = page.get_by_role("button", name=re.compile(r"Поддержать на"))
     button.click()
     expect(page.get_by_role("alert")).to_contain_text("Слишком много попыток")
@@ -58,7 +58,7 @@ def test_server_error_is_shown_and_form_stays_usable(page, base_url):
 
 
 def test_form_is_keyboard_operable(page, base_url):
-    page.goto(base_url + "/donate")
+    page.goto(base_url + "/")
     page.get_by_label("Сумма").focus()
     for _ in range(12):
         page.keyboard.press("Tab")
@@ -93,3 +93,16 @@ def test_overlay_shows_alert(page, base_url, admin_api):
     expect(page.locator("#title")).to_contain_text("Вася")
     expect(page.locator("#msg")).to_have_text("Привет, стрим!")
     assert problems == []
+
+
+def test_page_is_readable_without_javascript(browser, base_url):
+    """Так страницу видят роботы поисковиков и ИИ: JavaScript выключен, а текст и FAQ на месте."""
+    ctx = browser.new_context(java_script_enabled=False)
+    page = ctx.new_page()
+    page.goto(base_url + "/")
+    expect(page.get_by_role("heading", level=1)).to_contain_text("Поддержать")
+    expect(page.get_by_text("Вопросы и ответы")).to_be_visible()
+    expect(page.get_by_text("Карта или СБП", exact=True)).to_be_visible()
+    assert page.locator('link[rel="canonical"]').get_attribute("href").endswith("/")
+    assert page.locator('meta[property="og:image"]').get_attribute("content").endswith("/og-cover.png")
+    ctx.close()

@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field, field_validator
 
 import payments as pay
 import security as sec
+import seo
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -327,23 +328,62 @@ class DonationIn(BaseModel):
     turnstile_token: str = Field(default="", max_length=2048)
 
 
-@app.get("/")
-def root():
-    return RedirectResponse("/donate")
-
-
-def html_page(name: str, kind: str, req: Request) -> HTMLResponse:
+def html_page(name: str, kind: str, req: Request, transform=None) -> HTMLResponse:
     """Отдаёт страницу, подставляя одноразовый nonce в <script> и <style> (inline-код без nonce браузер не выполнит)."""
     nonce = secrets.token_urlsafe(16)
     html = (STATIC / name).read_text(encoding="utf-8")
+    if transform:
+        html = transform(html)
     html = html.replace("<script>", f'<script nonce="{nonce}">').replace("<style>", f'<style nonce="{nonce}">')
     header = "Content-Security-Policy-Report-Only" if sec.CSP_REPORT_ONLY else "Content-Security-Policy"
     return HTMLResponse(html, headers={header: sec.csp(kind, nonce, req.headers.get("host", ""))})
 
 
+@app.get("/")
+def home(req: Request):
+    """Главная и есть страница доната: текст, способы оплаты и FAQ отрисовываются на сервере (для поисковиков и ИИ-ботов)."""
+    return html_page("donate.html", "donate", req, lambda tpl: seo.render_donate(tpl, req, load_cfg()))
+
+
 @app.get("/donate")
-def donate_page(req: Request):
-    return html_page("donate.html", "donate", req)
+def donate_old_address(req: Request):
+    """Старый адрес: постоянный редирект на главную, чтобы у страницы был один канонический адрес."""
+    query = req.url.query
+    return RedirectResponse("/" + ("?" + query if query else ""), status_code=301)
+
+
+@app.get("/robots.txt")
+def robots(req: Request):
+    return Response(seo.robots_txt(req), media_type="text/plain; charset=utf-8")
+
+
+@app.get("/sitemap.xml")
+def sitemap(req: Request):
+    return Response(seo.sitemap_xml(req), media_type="application/xml; charset=utf-8")
+
+
+@app.get("/llms.txt")
+def llms(req: Request):
+    return Response(seo.llms_txt(req, load_cfg()), media_type="text/plain; charset=utf-8")
+
+
+def static_asset(name: str, media_type: str) -> Response:
+    return Response((STATIC / name).read_bytes(), media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/og-cover.png")
+def og_cover():
+    return static_asset("og-cover.png", "image/png")
+
+
+@app.get("/favicon.svg")
+def favicon_svg():
+    return static_asset("favicon.svg", "image/svg+xml")
+
+
+@app.get("/favicon.ico")
+def favicon_ico():
+    return static_asset("favicon.ico", "image/x-icon")
 
 
 @app.get("/overlay")

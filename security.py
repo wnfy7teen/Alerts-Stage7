@@ -141,6 +141,8 @@ def apply_common_headers(resp, req: Request, path: str) -> None:
         h["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     if path.startswith("/api/") or private:
         h.setdefault("Cache-Control", "no-store")
+    if private or path in ("/thanks", "/crypto-webhook") or path.startswith(("/api/", "/media/")):
+        h.setdefault("X-Robots-Tag", "noindex, nofollow")
 
 
 # ───────────────────────── CSRF ─────────────────────────
