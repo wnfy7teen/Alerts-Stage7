@@ -1,0 +1,23 @@
+# Автоматический HTTPS (Let's Encrypt). DOMAIN и ACME_EMAIL берутся из .env.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# запросы больше 22 МБ отклоняются ещё до приложения (загрузка файлов до 20 МБ)
+	request_body {
+		max_size 22MB
+	}
+
+	header {
+		-Server
+	}
+
+	# Caddy сам ставит X-Forwarded-For (адрес клиента) и X-Forwarded-Proto; WebSocket (/ws) проксируется автоматически
+	reverse_proxy app:8000 {
+		health_uri /api/health
+		health_interval 30s
+	}
+}

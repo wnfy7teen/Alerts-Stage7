@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E9", "F", "B", "S"]
+ignore = [
+    "S101",  # assert нужен в тестах
+    "S104",  # привязка к 0.0.0.0 внутри контейнера задана намеренно
+    "S105", "S106",  # «пароли» в тестах и примерах
+    "B008",  # Depends(...) в аргументах — принятый приём FastAPI
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]
+"e2e/*" = ["S", "B"]
+
+[tool.mypy]
+files = ["server.py", "payments.py", "security.py"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
