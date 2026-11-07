@@ -355,6 +355,7 @@
     <li><span class="step-number">4</span><span><strong>Настройки и OBS</strong><br>Измените оформление и проверьте оповещения.</span></li>
   </ol><div class="onboarding-actions"><button type="button" id="closeOnboarding">Понятно, начать работу</button></div>
 </div></div>
+<div class="admin-save-fab" aria-label="Сохранение настроек"><button type="button" class="primary" id="save">Сохранить</button><span id="status" role="status" aria-live="polite"></span></div>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -773,6 +774,5 @@ $("hist").addEventListener("click", async e => {
   setInterval(loadMonitoring, 60000);
 })();
 </script>
-<div class="admin-save-fab" aria-label="Сохранение настроек"><button type="button" class="primary" id="save">Сохранить</button><span id="status" role="status" aria-live="polite"></span></div>
 </body>
 </html>
