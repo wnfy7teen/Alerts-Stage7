@@ -81,7 +81,10 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     save_button = page.locator("#save")
     expect(save_button).to_be_visible()
     expect(page.locator(".bar")).to_have_count(0)
-    expect(save_button.locator("xpath=ancestor::header[contains(@class, 'admin-header')]")).to_have_count(1)
+    expect(save_button.locator("xpath=ancestor::div[contains(@class, 'admin-save-fab')]")).to_have_count(1)
+    fab_position = save_button.evaluate("(el) => ({ position: getComputedStyle(el.parentElement).position, right: getComputedStyle(el.parentElement).right, bottom: getComputedStyle(el.parentElement).bottom })")
+    assert fab_position["position"] == "fixed"
+    assert fab_position["right"] == "24px" and fab_position["bottom"] == "24px"
     save_size = save_button.evaluate("(el) => ({ width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height })")
     assert 120 <= save_size["width"] <= 145
     assert 36 <= save_size["height"] <= 44
