@@ -151,6 +151,14 @@ def test_nowpayments_ipn_signature_and_credit(client, fake):
     assert len(fake.alerts) == 1
 
 
+def test_cryptopay_webhook_rejects_non_object_payload(client):
+    for payload in ([], {"update_type": "invoice_paid", "payload": []}):
+        raw = json.dumps(payload).encode()
+        good = hmac.new(hashlib.sha256(b"cp-token").digest(), raw, hashlib.sha256).hexdigest()
+        assert client.post("/api/webhooks/cryptopay", content=raw,
+                           headers={"crypto-pay-api-signature": good}).status_code == 400
+
+
 def test_cryptopay_webhook(client, fake):
     donate(client, "cryptopay")
     fake.cp_status = "paid"
