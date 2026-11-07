@@ -760,20 +760,21 @@ def system_health():
     stale_pending = int(pending["stale"] or 0)
     oldest_pending = pending["oldest"]
     issues = []
-    if database["status"] != "ok" or disk["status"] == "critical":
-        overall = "critical"
-    else:
-        if disk["status"] == "warning":
-            issues.append("low_disk_space")
-        if backup["status"] != "success":
-            issues.append("backup_" + str(backup["status"]))
-        if stale_pending:
-            issues.append("stale_payments")
-        if outbox["pending"] and outbox["oldest_pending_seconds"] and outbox["oldest_pending_seconds"] > 300:
-            issues.append("stale_alert_queue")
-        if not pay.enabled_methods():
-            issues.append("no_payment_provider")
-        overall = "warning" if issues else "ok"
+    if database["status"] != "ok":
+        issues.append("database_error")
+    if disk["status"] == "critical":
+        issues.append("disk_critical")
+    elif disk["status"] == "warning":
+        issues.append("low_disk_space")
+    if backup["status"] != "success":
+        issues.append("backup_" + str(backup["status"]))
+    if stale_pending:
+        issues.append("stale_payments")
+    if outbox["pending"] and outbox["oldest_pending_seconds"] and outbox["oldest_pending_seconds"] > 300:
+        issues.append("stale_alert_queue")
+    if not pay.enabled_methods():
+        issues.append("no_payment_provider")
+    overall = "critical" if database["status"] != "ok" or disk["status"] == "critical" else "warning" if issues else "ok"
 
     return {
         "status": overall,
