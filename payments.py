@@ -559,7 +559,12 @@ async def handle_cryptopay_webhook(raw: bytes, signature: str) -> None:
         upd = json.loads(raw)
     except ValueError:
         raise PaymentError("bad request", 400) from None
+    if not isinstance(upd, dict):
+        raise PaymentError("bad request", 400)
     if upd.get("update_type") == "invoice_paid":
-        row = find_by_txn("cryptopay", str((upd.get("payload") or {}).get("invoice_id", "")))
+        payload = upd.get("payload")
+        if not isinstance(payload, dict):
+            raise PaymentError("bad request", 400)
+        row = find_by_txn("cryptopay", str(payload.get("invoice_id", "")))
         if row:
             await refresh(row)
