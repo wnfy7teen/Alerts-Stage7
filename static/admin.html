@@ -213,6 +213,27 @@
   .bar { background: #111827; border-top: 1px solid #53647D; box-shadow: 0 -8px 24px rgba(0,0,0,.3); backdrop-filter: none; -webkit-backdrop-filter: none; }
   button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #B9C5FF; outline-offset: 3px; }
 
+
+  /* Soft pink accent theme — preserve the high-contrast graphite layout. */
+  :root {
+    --brand-blue: #E9A8C3;
+    --brand-pink: #E9A8C3;
+    --accent: #E9A8C3;
+    --action: #B35479;
+    --action-hover: #A94F75;
+  }
+  button:hover:not(:disabled) { background: #38232D; border-color: #E9A8C3; }
+  button.primary { background: #B35479; color: #FFFFFF; border: 1px solid #D58EAC; box-shadow: none; }
+  button.primary:hover:not(:disabled) { background: #A94F75; border-color: #E9A8C3; }
+  input[type=checkbox] { accent-color: #D98EAD; }
+  input:focus, select:focus, textarea:focus { border-color: #E9A8C3; outline: 3px solid rgba(233,168,195,.2); box-shadow: none; }
+  input[readonly] { color: #F4D7E3; background: #2A1D29; }
+  #overlayLink, code { color: #F0B7CD; }
+  .tier-head, th { color: #F0B7CD; }
+  .delivery-stat strong, #status, #testStatus { color: #F4D7E3; }
+  tbody tr:hover { background: #211A27; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #F0B7CD; outline-offset: 3px; }
+
 </style>
 </head>
 <body>
