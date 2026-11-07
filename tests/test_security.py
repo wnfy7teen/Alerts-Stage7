@@ -90,6 +90,56 @@ def test_admin_delivery_stats_is_private_and_reports_queue(client):
 
 
 
+def test_admin_system_health_reports_database_disk_and_backup(client, monkeypatch, tmp_path):
+    now = pay.time.time()
+    status_path = tmp_path / "backup-status.json"
+    status_path.write_text(json.dumps({
+        "status": "success", "last_attempt_at": now - 3600, "last_success_at": now - 3600,
+        "backup_file": "donations-test.db", "size_bytes": 12345, "db_integrity": "ok",
+        "config_included": True,
+    }), encoding="utf-8")
+    monkeypatch.setattr(server, "BACKUP_STATUS_PATH", status_path)
+
+    response = client.get("/api/admin/system-health", auth=AUTH)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["database"]["status"] == "ok"
+    assert data["disk"]["free_percent"] > 0
+    assert data["backup"]["status"] == "success"
+    assert data["backup"]["file"] == "donations-test.db"
+    assert client.get("/api/admin/system-health").status_code == 401
+
+
+def test_admin_system_health_marks_old_backup_stale(client, monkeypatch, tmp_path):
+    now = pay.time.time()
+    status_path = tmp_path / "backup-status.json"
+    status_path.write_text(json.dumps({
+        "status": "success", "last_attempt_at": now - 50 * 3600,
+        "last_success_at": now - 50 * 3600, "backup_file": "old.db",
+        "size_bytes": 100, "db_integrity": "ok",
+    }), encoding="utf-8")
+    monkeypatch.setattr(server, "BACKUP_STATUS_PATH", status_path)
+
+    response = client.get("/api/admin/system-health", auth=AUTH)
+    assert response.json()["backup"]["status"] == "stale"
+    assert "backup_stale" in response.json()["issues"]
+
+
+def test_admin_deployment_history_uses_cached_github_data(client, monkeypatch):
+    now = pay.time.time()
+    payload = {
+        "available": True, "stale": False, "fetched_at": now,
+        "items": [{"title": "Deploy #47", "sha": "abc1234", "status": "completed",
+                   "conclusion": "success", "updated_at": "2026-11-07T09:00:00Z",
+                   "url": "https://github.com/wnfy7teen/Alerts-Stage7/actions/runs/47"}],
+    }
+    monkeypatch.setattr(server, "_DEPLOY_HISTORY_CACHE", {"fetched_at": now, "payload": payload})
+    response = client.get("/api/admin/deployments", auth=AUTH)
+    assert response.status_code == 200
+    assert response.json()["items"][0]["sha"] == "abc1234"
+    assert client.get("/api/admin/deployments").status_code == 401
+
+
 def test_admin_bruteforce_lockout(client, monkeypatch):
     monkeypatch.setattr(server, "auth_failures", sec.FailureLimiter(10, 900))
     assert [client.get("/admin", auth=("admin", f"bad{i}")).status_code for i in range(10)] == [401] * 10
