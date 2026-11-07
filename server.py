@@ -252,6 +252,9 @@ async def make_alert(name: str, message: str, amount: float, fiat: str, alert_id
 
 async def on_paid(row) -> bool:
     """Отправляет алерт с постоянным ID, чтобы повторную доставку можно было дедуплицировать."""
+    # Не создаём TTS-файл и не тратим время на подготовку алерта, пока OBS офлайн.
+    if not clients:
+        return False
     alert = await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"], row["id"])
     return await broadcast(alert)
 
