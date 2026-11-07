@@ -583,8 +583,8 @@ async def mark_paid(donation_id: str) -> bool:
     now = time.time()
     with closing(db()) as c:
         cur = c.execute(
-            "UPDATE donations SET status='paid', paid_at=? WHERE id=? "
-            "AND status NOT IN ('paid','partially_refunded','refunded')",
+            "UPDATE donations SET status=CASE WHEN status='partially_refunded' "
+            "THEN status ELSE 'paid' END, paid_at=? WHERE id=? AND status NOT IN ('paid','refunded')",
             (now, donation_id),
         )
         first = cur.rowcount == 1
@@ -816,6 +816,8 @@ async def handle_yookassa_webhook(body: dict, client_ip: str) -> None:
             refund_amount = Decimal(str(amount.get("value")))
         except (InvalidOperation, TypeError, ValueError):
             return
+        if refund_amount < Decimal(str(row["amount"])):
+            await mark_paid(row["id"])
         record_refund(
             donation_id=row["id"], provider="yookassa", provider_refund_id=refund_id,
             amount=float(refund_amount), currency=row["currency"],
