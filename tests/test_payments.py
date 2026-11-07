@@ -295,3 +295,23 @@ def test_legacy_schema_migration(tmp_path, monkeypatch):
 
 def test_health(client):
     assert client.get("/api/health").json()["status"] == "ok"
+
+
+
+def test_admin_replay_reports_offline_overlay(client, monkeypatch):
+    import server
+
+    donation_id = donate(client).json()["donation_id"]
+    with closing(pay.db()) as db:
+        db.execute("UPDATE donations SET status='paid' WHERE id=?", (donation_id,))
+        db.commit()
+
+    async def offline(_alert):
+        return False
+
+    monkeypatch.setattr(server, "broadcast", offline)
+    response = client.post(
+        f"/api/admin/replay/{donation_id}", auth=("admin", "pw-test-1234567")
+    )
+    assert response.status_code == 409
+    assert "Оверлей не подключён" in response.json()["detail"]
