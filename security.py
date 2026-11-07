@@ -79,6 +79,7 @@ class FailureLimiter:
     def __init__(self, limit: int, window: float):
         self.limit, self.window = limit, window
         self._fails: dict[str, deque] = defaultdict(deque)
+        self._next_prune_at = 10_000
 
     def _trim(self, key: str) -> deque:
         now, q = time.monotonic(), self._fails[key]
@@ -92,8 +93,9 @@ class FailureLimiter:
     def fail(self, key: str) -> None:
         now = time.monotonic()
         self._trim(key).append(now)
-        if len(self._fails) > 10_000:
+        if len(self._fails) > self._next_prune_at:
             self._prune(now)
+            self._next_prune_at = len(self._fails) + 10_000
 
     def _prune(self, now: float) -> None:
         """Удаляет IP-ключи, для которых все неудачные попытки уже устарели."""
