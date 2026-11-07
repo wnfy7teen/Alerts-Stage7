@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - design/light-brand-palette
+      - 'fix/**'
 
 jobs:
   test:
