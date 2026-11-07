@@ -28,12 +28,12 @@
     border-right: 1.7px solid var(--action); border-bottom: 1.7px solid var(--action);
     transform: rotate(45deg); transition: transform .22s ease; }
   .faq-item[open] .faq-chevron { transform: rotate(225deg); margin-bottom: -4px; }
-  .faq-answer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .24s ease; }
   .faq-answer > div { overflow: hidden; }
   .faq-answer p { color: var(--muted); margin: 0; padding: 0 24px 16px 2px; font-size: 14px; line-height: 1.65; }
-  .faq-item[open] .faq-answer { grid-template-rows: 1fr; }
+  .faq-item[open] .faq-answer { animation: faq-reveal .22s ease both; }
+  @keyframes faq-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
   @media (prefers-reduced-motion: reduce) {
-    .faq-chevron, .faq-answer { transition: none; }
+    .faq-chevron, .faq-answer { transition: none; animation: none; }
   }
   footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
   .links { list-style: none; display: flex; gap: 16px; padding: 0; margin: 0 0 8px; }
