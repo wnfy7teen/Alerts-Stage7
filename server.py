@@ -704,11 +704,14 @@ def _backup_health(now: float) -> dict:
         return {"status": "unknown", "last_success_at": None, "age_seconds": None, "file": None}
     except (OSError, ValueError, TypeError):
         return {"status": "error", "last_success_at": None, "age_seconds": None, "file": None}
-    last_success = data.get("last_success_at")
-    age = max(0, int(now - float(last_success))) if last_success is not None else None
+    try:
+        last_success = float(data["last_success_at"]) if data.get("last_success_at") is not None else None
+    except (TypeError, ValueError):
+        return {"status": "error", "last_success_at": None, "age_seconds": None, "file": None}
+    age = max(0, int(now - last_success)) if last_success is not None else None
     status = data.get("status", "unknown")
-    if status == "success" and age is not None and age > 48 * 3600:
-        status = "stale"
+    if status == "success" and (age is None or age > 48 * 3600):
+        status = "stale" if age is not None else "error"
     return {
         "status": status,
         "last_success_at": last_success,

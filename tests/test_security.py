@@ -114,6 +114,13 @@ def test_admin_system_health_reports_database_disk_and_backup(client, monkeypatc
     assert client.get("/api/admin/system-health").status_code == 401
 
 
+def test_backup_health_handles_malformed_timestamp(monkeypatch, tmp_path):
+    status_path = tmp_path / "backup-status.json"
+    status_path.write_text(json.dumps({"status": "success", "last_success_at": "not-a-timestamp"}), encoding="utf-8")
+    monkeypatch.setattr(server, "BACKUP_STATUS_PATH", status_path)
+    assert server._backup_health(pay.time.time())["status"] == "error"
+
+
 def test_admin_system_health_marks_old_backup_stale(client, monkeypatch, tmp_path):
     now = pay.time.time()
     status_path = tmp_path / "backup-status.json"
