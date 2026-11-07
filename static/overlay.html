@@ -60,6 +60,14 @@ const dynamicStyle = document.createElement("style");
 dynamicStyle.nonce = document.currentScript.nonce;
 document.head.appendChild(dynamicStyle);
 const safeHex = value => /^#[0-9a-f]{6}$/i.test(value || "") ? value : "#0593C6";
+function luminance(hex) {
+  const rgb = hex.slice(1).match(/../g).map(v => parseInt(v, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+  return .2126 * rgb[0] + .7152 * rgb[1] + .0722 * rgb[2];
+}
+function readableText(hex) {
+  const ratio = (1.05) / (luminance(hex) + .05);
+  return ratio >= 4.5 ? hex : "#003D55";
+}
 let busy = false;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -114,7 +122,7 @@ function speak(text, volume, rate) {  // запасной вариант, есл
 
 async function show(a) {
   const accent = safeHex(a.color);
-  const textColor = safeHex(a.text_color || "#003D55");
+  const textColor = readableText(safeHex(a.text_color || "#003D55"));
   const size = Math.max(12, Math.min(80, Number(a.font_size) || 28));
   dynamicStyle.textContent = "#card { --alert-accent: " + accent + "; --alert-text: " + textColor + "; --alert-size: " + size + "px; }";
   document.getElementById("title").textContent = a.title;
