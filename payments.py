@@ -532,6 +532,20 @@ async def refresh(row: sqlite3.Row) -> str:
     return verdict
 
 
+def prune_delivered_alerts(retention_seconds: int = 30 * 86400, limit: int = 500) -> int:
+    """Удаляет только давно доставленные записи, ограничивая объём одной очистки."""
+    cutoff = time.time() - max(0, retention_seconds)
+    with closing(db()) as c:
+        cur = c.execute(
+            "DELETE FROM alert_outbox WHERE donation_id IN ("
+            "SELECT donation_id FROM alert_outbox WHERE delivered_at IS NOT NULL "
+            "AND delivered_at<? ORDER BY delivered_at LIMIT ?)",
+            (cutoff, max(1, limit)),
+        )
+        c.commit()
+        return cur.rowcount
+
+
 async def poll_once(tick: int = 0) -> None:
     now = time.time()
     with closing(db()) as c:
@@ -544,6 +558,8 @@ async def poll_once(tick: int = 0) -> None:
             continue
         await refresh(row)
     await dispatch_pending_alerts()
+    if tick % 720 == 0:  # раз в час при интервале poller 5 секунд
+        prune_delivered_alerts()
 
 
 # ───────────────────────── создание доната ─────────────────────────
