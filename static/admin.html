@@ -65,6 +65,7 @@
   .analytics-panel{min-width:0}.analytics-panel h3{margin:0 0 9px;color:#F0B7CD;font-size:14px}
   .analytics-panel .table-wrap{margin:0}
   .monitor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .monitor-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .monitor-state{display:inline-flex;align-items:center;min-height:30px;padding:5px 10px;border:1px solid #53647D;border-radius:999px;background:#172033;color:#E2E8F0;font-size:12px;font-weight:700}
   .monitor-state.ok{border-color:#326A58;background:#10251F;color:#9DE2C2}
   .monitor-state.warning{border-color:#80633D;background:#2A2115;color:#F2D49C}
@@ -204,7 +205,7 @@
     <h2>Состояние системы</h2>
     <div class="monitor-toolbar">
       <span id="monitorOverall" class="monitor-state" role="status" aria-live="polite">Проверка…</span>
-      <div class="bar"><span id="monitorUpdated" class="muted">—</span><button type="button" id="monitorRefresh">Обновить</button></div>
+      <div class="monitor-actions"><span id="monitorUpdated" class="muted">—</span><button type="button" id="monitorRefresh">Обновить</button></div>
     </div>
     <div class="monitor-grid">
       <div class="monitor-card"><span>База данных</span><strong id="monDatabase">—</strong></div>
@@ -410,6 +411,8 @@ async function loadMonitoring() {
   $("monObs").textContent = health.obs.status === "connected" ? "Подключён · " + health.obs.connections : "Оффлайн";
   $("monTts").textContent = health.tts.enabled ? "Включена" : "Выключена";
   const issueNames = {
+    database_error: "База данных не прошла проверку целостности",
+    disk_critical: "Критически мало свободного места на диске",
     low_disk_space: "Мало свободного места на диске",
     backup_unknown: "Нет данных о резервных копиях",
     backup_stale: "Резервная копия старше 48 часов",
