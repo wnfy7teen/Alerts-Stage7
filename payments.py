@@ -603,7 +603,14 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
     except sqlite3.IntegrityError:  # тот же Idempotency-Key: отдаём прежний результат, а не создаём второй платёж
         with closing(db()) as c:
             row = c.execute("SELECT * FROM donations WHERE idem_key=?", (idem_key,)).fetchone()
-        if not row or row["provider"] != method or abs(row["amount"] - amount) > 0.001:
+        if (
+            not row
+            or row["provider"] != method
+            or row["currency"] != currency
+            or abs(row["amount"] - amount) > 0.001
+            or row["donor_name"] != name
+            or row["message"] != message
+        ):
             raise PaymentError("Этот ключ уже использован для другого платежа", 409) from None
         if not row["checkout"]:
             raise PaymentError("Платёж ещё создаётся, подождите секунду", 409) from None
