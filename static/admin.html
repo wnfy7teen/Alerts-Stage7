@@ -384,6 +384,7 @@ $("navSearch").addEventListener("input",()=>{
     });
     group.hidden=count===0;
   });
+  $("navNoResults").hidden=!q||document.querySelectorAll(".nav-group:not([hidden])").length>0;
 });
 function showOnboarding(){$("onboarding").hidden=false;$("closeOnboarding").focus();}
 function closeOnboarding(){
@@ -393,7 +394,10 @@ function closeOnboarding(){
 $("showOnboarding").addEventListener("click",showOnboarding);
 $("closeOnboarding").addEventListener("click",closeOnboarding);
 $("onboarding").addEventListener("click",e=>{if(e.target===$("onboarding"))closeOnboarding();});
-document.addEventListener("keydown",e=>{\n  if(e.key==="Escape"&&!$("onboarding").hidden)closeOnboarding();\n  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("navSearch").focus();}\n});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&!$("onboarding").hidden)closeOnboarding();
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("navSearch").focus();}
+});
 try{if(!localStorage.getItem("donation-admin-onboarding-v1"))showOnboarding();}catch(e){}
 updateNavigation();
 
