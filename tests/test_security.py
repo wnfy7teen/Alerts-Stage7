@@ -152,6 +152,7 @@ def test_webhook_and_csp_body_limits(client):
 
 
 def test_websocket_limit(client):
+    server.clients.clear()  # Remove the fake overlay registered by the shared test fixture.
     with ExitStack() as stack:
         for _ in range(10):
             stack.enter_context(client.websocket_connect("/ws?key=overlay-key-test-0123456789"))
