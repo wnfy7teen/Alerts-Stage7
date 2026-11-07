@@ -221,6 +221,34 @@ def recent(limit: int = 30) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def alert_delivery_stats() -> dict:
+    """Сводка очереди без имён, сообщений и идентификаторов донатов."""
+    now = time.time()
+    with closing(db()) as c:
+        row = c.execute(
+            "SELECT COUNT(*) AS total, "
+            "SUM(CASE WHEN delivered_at IS NULL THEN 1 ELSE 0 END) AS pending, "
+            "SUM(CASE WHEN delivered_at IS NOT NULL THEN 1 ELSE 0 END) AS delivered, "
+            "SUM(CASE WHEN delivered_at IS NULL THEN attempts ELSE 0 END) AS attempts, "
+            "MIN(CASE WHEN delivered_at IS NULL THEN created_at END) AS oldest_pending_at "
+            "FROM alert_outbox"
+        ).fetchone()
+        errors = c.execute(
+            "SELECT last_error, COUNT(*) AS count FROM alert_outbox "
+            "WHERE delivered_at IS NULL AND last_error IS NOT NULL "
+            "GROUP BY last_error ORDER BY count DESC LIMIT 5"
+        ).fetchall()
+    oldest = row["oldest_pending_at"]
+    return {
+        "pending": int(row["pending"] or 0),
+        "delivered": int(row["delivered"] or 0),
+        "pending_attempts": int(row["attempts"] or 0),
+        "oldest_pending_at": oldest,
+        "oldest_pending_seconds": max(0, int(now - oldest)) if oldest is not None else None,
+        "errors": [{"code": r["last_error"], "count": int(r["count"])} for r in errors],
+    }
+
+
 def public_status(donation_id: str) -> dict | None:
     """Только то, что можно отдавать анониму: без имени и сообщения."""
     if not re.fullmatch(r"[0-9a-f]{32}", donation_id or ""):

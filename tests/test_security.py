@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
 
 import httpx
 import pytest
@@ -70,6 +70,24 @@ def test_csp_report_endpoint(client):
 def test_admin_requires_auth(client):
     assert client.get("/api/admin/config").status_code == 401
     assert client.get("/api/admin/config", auth=("admin", "wrong")).status_code == 401
+
+def test_admin_delivery_stats_is_private_and_reports_queue(client):
+    assert client.get("/api/admin/delivery").status_code == 401
+    donation_id = donate(client).json()["donation_id"]
+    with closing(pay.db()) as db:
+        db.execute(
+            "INSERT INTO alert_outbox(donation_id,created_at,attempts,next_attempt_at,last_error) "
+            "VALUES(?,?,?,?,?)", (donation_id, pay.time.time() - 120, 3, pay.time.time(), "no_overlay_clients")
+        )
+        db.commit()
+    response = client.get("/api/admin/delivery", auth=AUTH)
+    assert response.status_code == 200
+    stats = response.json()
+    assert stats["pending"] == 1 and stats["delivered"] == 0
+    assert stats["pending_attempts"] == 3 and stats["oldest_pending_seconds"] >= 120
+    assert stats["errors"] == [{"code": "no_overlay_clients", "count": 1}]
+
+
 
 
 def test_admin_bruteforce_lockout(client, monkeypatch):
