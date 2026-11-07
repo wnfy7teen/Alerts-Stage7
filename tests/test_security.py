@@ -222,3 +222,18 @@ def test_sentry_event_is_scrubbed():
 def test_sentry_is_off_without_dsn(monkeypatch):
     monkeypatch.delenv("SENTRY_DSN", raising=False)
     assert sec.init_sentry() is False
+
+
+
+def test_shared_brand_theme_is_available_and_allowed_by_csp(client):
+    theme = client.get("/theme.css")
+    assert theme.status_code == 200
+    assert "--brand-blue: #0593C6" in theme.text
+    assert "--brand-white: #FCFFFF" in theme.text
+    assert "--brand-pink: #F8C8DC" in theme.text
+
+    for path, auth in [("/", None), ("/admin", AUTH), ("/thanks", None), ("/overlay", None)]:
+        response = client.get(path, auth=auth)
+        csp = response.headers["content-security-policy"]
+        assert "style-src 'self'" in csp
+        assert 'href="/theme.css"' in response.text
