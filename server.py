@@ -697,7 +697,7 @@ def transactions_csv(status: str = "", provider: str = "", q: str = ""):
     writer = csv.writer(output)
     writer.writerow([
         "ID доната", "ID платежа провайдера", "Дата создания", "Дата оплаты",
-        "Имя", "Сообщение", "Сумма", "Валюта", "Статус", "Провайдер",
+        "Имя", "Сообщение", "Сумма", "Возвращено", "Количество возвратов", "Валюта", "Статус", "Провайдер",
     ])
     offset = 0
     while offset < 10000:
@@ -712,8 +712,8 @@ def transactions_csv(status: str = "", provider: str = "", q: str = ""):
                 _csv_cell(row["id"]), _csv_cell(row["provider_txn_id"]),
                 _csv_cell(row["created_at"]), _csv_cell(row["paid_at"]),
                 _csv_cell(row["donor_name"]), _csv_cell(row["message"]),
-                row["amount"], _csv_cell(row["currency"]), _csv_cell(row["status"]),
-                _csv_cell(row["provider"]),
+                row["amount"], row["refunded_amount"], row["refund_count"],
+                _csv_cell(row["currency"]), _csv_cell(row["status"]), _csv_cell(row["provider"]),
             ])
         offset += len(items)
         if offset >= batch["total"]:
@@ -728,7 +728,7 @@ def transactions_csv(status: str = "", provider: str = "", q: str = ""):
 @app.post("/api/admin/replay/{donation_id}", dependencies=ADMIN)
 async def replay(donation_id: str):
     row = pay.get_row(donation_id)
-    if not row or row["status"] != "paid":
+    if not row or row["status"] not in ("paid", "partially_refunded"):
         raise HTTPException(404, "Оплаченный донат не найден")
     delivered = await broadcast(await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"]))
     if not delivered:

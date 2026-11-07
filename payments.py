@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS donations(
     id TEXT PRIMARY KEY,
     amount REAL NOT NULL,
     currency TEXT NOT NULL,
-    status TEXT NOT NULL,              -- created | pending | paid | canceled | failed | expired
+    status TEXT NOT NULL,              -- created | pending | paid | partially_refunded | refunded | canceled | failed | expired
     donor_name TEXT NOT NULL,
     message TEXT NOT NULL,
     provider TEXT NOT NULL,            -- yookassa | nowpayments | cryptopay
@@ -171,6 +171,19 @@ CREATE TABLE IF NOT EXISTS donations(
 CREATE UNIQUE INDEX IF NOT EXISTS ux_donations_provider_txn
     ON donations(provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_donations_status ON donations(status, created_at);
+CREATE TABLE IF NOT EXISTS refunds(
+    id TEXT PRIMARY KEY,
+    donation_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_refund_id TEXT NOT NULL,
+    amount REAL,
+    currency TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    UNIQUE(provider, provider_refund_id),
+    FOREIGN KEY(donation_id) REFERENCES donations(id)
+);
+CREATE INDEX IF NOT EXISTS ix_refunds_donation ON refunds(donation_id, status);
 CREATE TABLE IF NOT EXISTS alert_outbox(
     donation_id TEXT PRIMARY KEY,
     created_at REAL NOT NULL,
@@ -231,6 +244,67 @@ def find_by_txn(provider: str, txn: str) -> sqlite3.Row | None:
         ).fetchone()
 
 
+def record_refund(
+    *,
+    donation_id: str,
+    provider: str,
+    provider_refund_id: str,
+    amount: float | None,
+    currency: str,
+) -> bool:
+    """Сохраняет подтверждённый провайдером возврат идемпотентно."""
+    if not provider_refund_id or len(provider_refund_id) > 200:
+        return False
+    refund_value: float | None = None
+    if amount is not None:
+        try:
+            value = Decimal(str(amount))
+            if not value.is_finite() or value <= 0:
+                return False
+            refund_value = float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        except (InvalidOperation, TypeError, ValueError):
+            return False
+
+    with closing(db()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute("SELECT * FROM donations WHERE id=?", (donation_id,)).fetchone()
+        if not row or row["provider"] != provider or row["currency"].upper() != currency.upper():
+            c.rollback()
+            return False
+        if row["status"] not in ("created", "pending", "paid", "partially_refunded", "refunded"):
+            c.rollback()
+            return False
+        exists = c.execute(
+            "SELECT 1 FROM refunds WHERE provider=? AND provider_refund_id=?",
+            (provider, provider_refund_id),
+        ).fetchone()
+        if exists:
+            c.rollback()
+            return False
+        refunded_before = Decimal(str(c.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM refunds WHERE donation_id=? AND status='succeeded'",
+            (donation_id,),
+        ).fetchone()[0]))
+        if refund_value is not None:
+            new_total = refunded_before + Decimal(str(refund_value))
+            original = Decimal(str(row["amount"]))
+            if new_total - original > Decimal("0.01"):
+                log.error("Возврат превышает сумму доната %s", donation_id)
+                c.rollback()
+                return False
+            new_status = "refunded" if new_total >= original - Decimal("0.01") else "partially_refunded"
+        else:
+            new_status = "refunded"
+        c.execute(
+            "INSERT INTO refunds(id,donation_id,provider,provider_refund_id,amount,currency,status,created_at) "
+            "VALUES(?,?,?,?,?,?, 'succeeded', ?)",
+            (uuid.uuid4().hex, donation_id, provider, provider_refund_id, refund_value, currency, time.time()),
+        )
+        c.execute("UPDATE donations SET status=? WHERE id=?", (new_status, donation_id))
+        c.commit()
+    return True
+
+
 def recent(limit: int = 30) -> list[dict]:
     with closing(db()) as c:
         rows = c.execute("SELECT * FROM donations ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
@@ -239,7 +313,7 @@ def recent(limit: int = 30) -> list[dict]:
 
 def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", provider: str = "", query: str = "") -> dict:
     """Возвращает страницу финансового журнала и общее число совпадений."""
-    allowed_statuses = {"created", "pending", "paid", "canceled", "failed", "expired", "refunded"}
+    allowed_statuses = {"created", "pending", "paid", "partially_refunded", "refunded", "canceled", "failed", "expired"}
     allowed_providers = {"yookassa", "nowpayments", "cryptopay"}
     status_filter = status if status in allowed_statuses else ""
     provider_filter = provider if provider in allowed_providers else ""
@@ -260,7 +334,10 @@ def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", pro
         ).fetchone()[0]
         rows = c.execute(
             "SELECT id, amount, currency, status, donor_name, message, provider, provider_txn_id, "
-            "created_at, paid_at FROM donations "
+            "created_at, paid_at, "
+            "(SELECT COUNT(*) FROM refunds WHERE donation_id=donations.id AND status='succeeded') AS refund_count, "
+            "(SELECT SUM(amount) FROM refunds WHERE donation_id=donations.id AND status='succeeded') "
+            "AS refunded_amount FROM donations "
             "WHERE (?='' OR status=?) AND (?='' OR provider=?) "
             "AND (?='' OR id LIKE ? OR provider_txn_id LIKE ? OR donor_name LIKE ? OR message LIKE ?) "
             "ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
@@ -422,6 +499,18 @@ async def _yk_verdict(row: sqlite3.Row) -> str:
     return "canceled" if data.get("status") == "canceled" else "pending"
 
 
+async def _yk_refund_data(refund_id: str) -> dict:
+    """Получает возврат из API ЮKassa; входящий webhook сам по себе не считается доказательством."""
+    async with _client() as c:
+        r = await c.get(f"{YK_API}/refunds/{refund_id}", auth=(YK_SHOP_ID, YK_SECRET))
+    if r.status_code != 200:
+        raise PaymentError("ЮKassa недоступна", 502)
+    data = r.json()
+    if data.get("id") != refund_id or data.get("status") != "succeeded":
+        return {}
+    return data
+
+
 # ───────────────────────── NOWPayments (крипта на сайте) ─────────────────────────
 async def _np_create(donation_id: str, amount: float, currency: str) -> tuple[str, dict]:
     body = {
@@ -468,7 +557,9 @@ async def _np_verdict(row: sqlite3.Row) -> str:
             log.error("NOWPayments: price_currency не совпадает для %s", row["id"])
             return "pending"
         return "paid"
-    if st in ("failed", "refunded"):
+    if st == "refunded":
+        return "refunded"
+    if st == "failed":
         return "failed"
     return "expired" if st == "expired" else "pending"  # partially_paid и прочее ждут
 
@@ -491,8 +582,12 @@ async def mark_paid(donation_id: str) -> bool:
     """Переводит донат в paid и атомарно ставит алерт в устойчивую очередь."""
     now = time.time()
     with closing(db()) as c:
-        cur = c.execute("UPDATE donations SET status='paid', paid_at=? WHERE id=? AND status!='paid'",
-                        (now, donation_id))
+        cur = c.execute(
+            "UPDATE donations SET status=CASE WHEN status='partially_refunded' "
+            "THEN status ELSE 'paid' END, paid_at=? WHERE id=? "
+            "AND status NOT IN ('paid','refunded') AND (status!='partially_refunded' OR paid_at IS NULL)",
+            (now, donation_id),
+        )
         first = cur.rowcount == 1
         row = c.execute("SELECT * FROM donations WHERE id=?", (donation_id,)).fetchone()
         if first and row:
@@ -574,6 +669,12 @@ async def refresh(row: sqlite3.Row) -> str:
         return row["status"]
     if verdict == "paid":
         await mark_paid(row["id"])
+    elif verdict == "refunded":
+        record_refund(
+            donation_id=row["id"], provider="nowpayments",
+            provider_refund_id=f"np-refund-{row['provider_txn_id']}",
+            amount=None, currency=row["currency"],
+        )
     elif verdict in ("canceled", "failed", "expired"):
         with closing(db()) as c:
             c.execute("UPDATE donations SET status=? WHERE id=? AND status IN ('created','pending')",
@@ -694,10 +795,36 @@ def _ip_allowed(ip: str, cidrs: list[str]) -> bool:
 
 
 async def handle_yookassa_webhook(body: dict, client_ip: str) -> None:
-    """У ЮKassa нет подписи: защита — проверка статуса запросом в API + (необязательно) список IP."""
+    """У ЮKassa нет подписи: платежи и возвраты перепроверяются через API + (необязательно) список IP."""
     if YK_WEBHOOK_IPS and not _ip_allowed(client_ip, YK_WEBHOOK_IPS):
         raise PaymentError("forbidden", 403)
-    txn = (body.get("object") or {}).get("id")
+    obj = body.get("object")
+    if not isinstance(obj, dict):
+        return
+    if body.get("event") == "refund.succeeded":
+        refund_id = obj.get("id")
+        if not isinstance(refund_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", refund_id):
+            return
+        refund = await _yk_refund_data(refund_id)
+        if not refund:
+            return
+        payment_id = refund.get("payment_id")
+        amount = refund.get("amount") or {}
+        row = find_by_txn("yookassa", payment_id) if isinstance(payment_id, str) else None
+        if not row or str(amount.get("currency", "")).upper() != row["currency"].upper():
+            return
+        try:
+            refund_amount = Decimal(str(amount.get("value")))
+        except (InvalidOperation, TypeError, ValueError):
+            return
+        if refund_amount < Decimal(str(row["amount"])):
+            await mark_paid(row["id"])
+        record_refund(
+            donation_id=row["id"], provider="yookassa", provider_refund_id=refund_id,
+            amount=float(refund_amount), currency=row["currency"],
+        )
+        return
+    txn = obj.get("id")
     row = find_by_txn("yookassa", txn) if isinstance(txn, str) else None
     if row:
         await refresh(row)
