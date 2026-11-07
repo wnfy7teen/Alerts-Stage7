@@ -89,21 +89,109 @@
   @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-columns{grid-template-columns:minmax(0,1fr)}.monitor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.history-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:520px){main{padding:19px 11px 110px}.admin-header{display:block}.admin-tag{display:inline-flex;margin-top:12px}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.history-tools{grid-template-columns:minmax(0,1fr)}.history-footer{align-items:flex-start;flex-direction:column}.bar{justify-content:space-between;gap:10px;padding-right:12px;padding-left:12px}#status{flex:1}}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+  main{width:auto;margin:0;display:block;gap:0}
+  .admin-shell{width:min(1440px,100%);margin:0 auto;padding:28px 24px 112px}
+  .admin-header{margin-bottom:22px}
+  .admin-layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:22px;align-items:start}
+  .admin-sidebar{position:sticky;top:18px;min-width:0;padding:14px;border:1px solid #3B4A61;border-radius:15px;background:#111827}
+  .sidebar-brand{display:flex;align-items:center;gap:10px;margin:2px 4px 14px;font-weight:750}
+  .sidebar-mark{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#38232D;color:#F4D7E3}
+  .sidebar-search{margin:0 0 14px}.sidebar-search input{min-height:40px}
+  .admin-nav{display:grid;gap:14px;overflow:visible;padding:0;border:0}
+  .nav-group{display:grid;gap:4px}.nav-group[hidden]{display:none}
+  .nav-group-title{margin:0 8px 4px;color:#AAB7C9;font-size:11px;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
+  .admin-nav a{display:flex;align-items:center;gap:10px;min-height:40px;padding:8px 10px;border:1px solid transparent;border-radius:9px;background:transparent;color:#E2E8F0;font-size:13px;text-decoration:none}
+  .admin-nav a::before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#718096}
+  .admin-nav a:hover,.admin-nav a:focus-visible{border-color:#70485B;background:#211720;color:#F4D7E3;outline:none}
+  .admin-nav a[aria-current="page"]{border-color:#70485B;background:#2A1D27;color:#F4D7E3;font-weight:700}
+  .admin-nav a[aria-current="page"]::before{background:#E9A8C3;box-shadow:0 0 0 4px #553344}
+  .admin-content{display:grid;gap:16px;min-width:0}
+  .breadcrumbs{display:flex;align-items:center;gap:8px;min-height:24px;color:#AAB7C9;font-size:12px}
+  .breadcrumbs a{color:#F0B7CD;text-decoration:none}.breadcrumbs a:hover{text-decoration:underline}
+  .page-help{margin:-7px 0 2px;color:#CBD5E1;font-size:13px}
+  .dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .dashboard-card{min-width:0;padding:15px;border:1px solid #53647D;border-radius:12px;background:#0D1523}
+  .dashboard-card span{display:block;color:#CBD5E1;font-size:12px}
+  .dashboard-card strong{display:block;margin-top:7px;color:#F4D7E3;font-size:clamp(19px,2.4vw,25px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .dashboard-card small{display:block;margin-top:5px;color:#AAB7C9;font-size:11px}
+  .dashboard-lower{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:14px}
+  .dashboard-panel{min-width:0;padding:15px;border:1px solid #3B4A61;border-radius:12px;background:#0D1523}
+  .dashboard-panel h3{margin:0 0 12px;color:#F0B7CD;font-size:14px}
+  .dashboard-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .dashboard-links a{display:flex;align-items:center;min-height:42px;padding:9px 11px;border:1px solid #53647D;border-radius:9px;color:#F8FAFC;text-decoration:none;font-size:13px}
+  .dashboard-links a:hover{border-color:#E9A8C3;background:#211720}
+  .dashboard-status{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #344155;font-size:13px}
+  .dashboard-status:last-of-type{border-bottom:0}
+  .status-pill{align-self:center;padding:3px 8px;border:1px solid #53647D;border-radius:999px;color:#CBD5E1;font-size:11px;white-space:nowrap}
+  .status-pill.ok{border-color:#326A58;background:#10251F;color:#9DE2C2}.status-pill.warning{border-color:#80633D;background:#2A2115;color:#F2D49C}
+  .onboarding-backdrop{position:fixed;z-index:30;inset:0;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.72)}
+  .onboarding-backdrop[hidden]{display:none}
+  .onboarding-card{width:min(480px,100%);padding:24px;border:1px solid #70485B;border-radius:16px;background:#111827;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+  .onboarding-card h2{margin:0 0 8px;font-size:23px}.onboarding-card p{color:#CBD5E1}
+  .onboarding-steps{display:grid;gap:10px;margin:18px 0;padding:0;list-style:none}
+  .onboarding-steps li{display:flex;gap:10px;align-items:flex-start;color:#E2E8F0;font-size:13px}
+  .step-number{display:grid;place-items:center;flex:0 0 24px;height:24px;border-radius:50%;background:#38232D;color:#F4D7E3;font-weight:700}
+  .onboarding-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.sidebar-help{width:100%;margin-top:12px}
+  section[id]{scroll-margin-top:18px}
+  @media(max-width:900px){.admin-shell{padding:22px 15px 112px}.admin-layout{grid-template-columns:1fr;gap:14px}.admin-sidebar{position:sticky;top:0;z-index:15;padding:10px;border-radius:0 0 13px 13px}.sidebar-brand{display:none}.sidebar-search{margin-bottom:8px}.admin-nav{display:flex;gap:5px;overflow-x:auto;padding-bottom:3px}.nav-group{display:flex;gap:4px;flex:0 0 auto}.nav-group-title{display:none}.admin-nav a{flex:0 0 auto;min-height:36px;padding:7px 9px}.admin-nav a::before{width:5px;height:5px;flex-basis:5px}.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:600px){.admin-shell{padding:16px 11px 108px}.dashboard-lower{grid-template-columns:1fr}.dashboard-links{grid-template-columns:1fr}.breadcrumbs{padding-left:2px}.admin-intro{max-width:38ch}}
 </style>
 </head>
 <body>
-<main>
-  <header class="admin-header"><div><p class="eyebrow">Панель управления</p><h1>Донат-алерты</h1><p class="admin-intro">Настройки приёма донатов, оформления и доставки уведомлений.</p></div><span class="admin-tag">Управление донатами</span></header>
-  <nav class="admin-nav" aria-label="Разделы панели">
-    <a href="#payment-settings">Приём донатов</a><a href="#alert-settings">Вид алерта</a><a href="#tts-settings">Озвучка</a><a href="#tiers-settings">Уровни</a><a href="#test-settings">Проверка</a><a href="#delivery-settings">Доставка</a><a href="#analytics-settings">Аналитика</a><a href="#monitoring-settings">Мониторинг</a><a href="#history-settings">История</a>
-  </nav>
-
-  <section>
-    <h2>Ссылка для OBS</h2>
-    <p class="muted flush">Источник «Браузер», ширина 1000, высота 600. Эту ссылку не показывайте на стриме.</p>
-    <code id="overlayLink">…</code>
-  </section>
-
+<main class="admin-shell">
+  <header class="admin-header"><div><p class="eyebrow">Панель управления</p><h1>Донаты и оповещения</h1><p class="admin-intro">Здесь можно управлять донатами, настройками и работой оповещений.</p></div><span class="admin-tag">Панель управления</span></header>
+  <div class="admin-layout">
+    <aside class="admin-sidebar" aria-label="Главное меню">
+      <div class="sidebar-brand"><span class="sidebar-mark">V</span><span>Управление сайтом</span></div>
+      <label class="sidebar-search">Поиск по разделам<input id="navSearch" type="search" placeholder="Например, статистика" autocomplete="off"></label>
+      <nav class="admin-nav" aria-label="Разделы панели">
+        <div class="nav-group"><p class="nav-group-title">Обзор</p><a href="#dashboard" data-label="главная обзор">Главная</a></div>
+        <div class="nav-group"><p class="nav-group-title">Донаты</p>
+          <a href="#history-settings" data-label="история платежей транзакции">История платежей</a>
+          <a href="#payment-settings" data-label="приём донатов сумма оплата">Приём донатов</a>
+          <a href="#delivery-settings" data-label="доставка уведомлений алертов">Доставка уведомлений</a>
+        </div>
+        <div class="nav-group"><p class="nav-group-title">Оформление</p>
+          <a href="#alert-settings" data-label="внешний вид оформление алерта">Внешний вид</a>
+          <a href="#tts-settings" data-label="озвучка голос">Озвучка сообщений</a>
+          <a href="#tiers-settings" data-label="оформление донатов уровни суммы">Оформление по суммам</a>
+          <a href="#test-settings" data-label="проверить тест уведомление">Проверить оповещение</a>
+          <a href="#overlay-settings" data-label="ссылка obs браузер">Подключение OBS</a>
+        </div>
+        <div class="nav-group"><p class="nav-group-title">Отчёты</p><a href="#analytics-settings" data-label="статистика доходы донатеры">Статистика доходов</a></div>
+        <div class="nav-group"><p class="nav-group-title">Сайт и обслуживание</p><a href="#monitoring-settings" data-label="состояние сайта мониторинг">Состояние сайта</a></div>
+      </nav>
+      <button type="button" class="sidebar-help" id="showOnboarding">Как пользоваться админкой</button>
+    </aside>
+    <div class="admin-content">
+      <div class="breadcrumbs" id="breadcrumbs" aria-label="Ваше местоположение"><a href="#dashboard">Главная</a><span aria-hidden="true">/</span><span id="breadcrumbCurrent">Обзор</span></div>
+      <p class="page-help" id="pageHelp">Краткий обзор донатов и состояния сервиса.</p>
+      <section id="dashboard">
+        <h2>Добро пожаловать!</h2>
+        <p class="muted flush">Здесь собрана главная информация. Выберите нужный раздел в меню или воспользуйтесь быстрыми ссылками.</p>
+        <div class="dashboard-grid" style="margin-top:15px">
+          <div class="dashboard-card"><span>Поступления</span><strong id="dashGross">—</strong><small>За выбранный период</small></div>
+          <div class="dashboard-card"><span>Возвраты</span><strong id="dashRefunds">—</strong><small>Учтённые возвраты</small></div>
+          <div class="dashboard-card"><span>Чистый доход</span><strong id="dashNet">—</strong><small>После возвратов</small></div>
+          <div class="dashboard-card"><span>Количество донатов</span><strong id="dashCount">—</strong><small>За выбранный период</small></div>
+        </div>
+        <div class="dashboard-lower">
+          <div class="dashboard-panel"><h3>Быстрые действия</h3><div class="dashboard-links">
+            <a href="#history-settings">Посмотреть платежи</a><a href="#analytics-settings">Открыть статистику</a>
+            <a href="#payment-settings">Настроить приём донатов</a><a href="#test-settings">Проверить оповещение</a>
+            <a href="#overlay-settings">Открыть подключение OBS</a><a href="#monitoring-settings">Проверить состояние сайта</a>
+          </div></div>
+          <div class="dashboard-panel"><h3>Состояние сервиса</h3>
+            <div class="dashboard-status"><span>Сайт и база данных</span><span class="status-pill" id="dashHealth">Проверяем…</span></div>
+            <div class="dashboard-status"><span>Приём платежей</span><span class="status-pill" id="dashPayments">Проверяем…</span></div>
+            <div class="dashboard-status"><span>OBS-оповещения</span><span class="status-pill" id="dashObs">Проверяем…</span></div>
+            <div class="dashboard-status"><span>Резервные копии</span><span class="status-pill warning" id="dashBackup">Нет данных</span></div>
+            <p class="monitor-note">Подробности находятся в разделе «Состояние сайта».</p>
+          </div>
+        </div>
+      </section>
+      <section id="overlay-settings"><h2>Подключение OBS</h2><p class="muted flush">Добавьте в OBS источник «Браузер», затем скопируйте ссылку ниже. Не показывайте её зрителям.</p><code id="overlayLink">…</code></section>
   <section id="payment-settings">
     <h2>Приём донатов</h2>
     <div class="grid">
@@ -126,7 +214,7 @@
   </section>
 
   <section id="tts-settings">
-    <h2>Озвучка (TTS)</h2>
+    <h2>Озвучка сообщений</h2>
     <div class="grid">
       <label class="check wide"><input id="tts_enabled" type="checkbox"> Озвучивать донаты</label>
       <label>Голос
@@ -146,7 +234,7 @@
   </section>
 
   <section id="tiers-settings">
-    <h2>Оформление по суммам</h2>
+    <h2>Оформление донатов по сумме</h2>
     <p class="muted flush">Для доната берётся самый высокий уровень, чья сумма «от» не больше суммы доната. Файлы загружаются кнопкой «Загрузить» и лежат в папке <code>media</code>.</p>
     <div id="tiers"></div>
     <button id="addTier" type="button">+ Добавить уровень</button>
@@ -176,7 +264,7 @@
   </section>
 
   <section id="analytics-settings">
-    <h2>Финансовая аналитика</h2>
+    <h2>Статистика доходов</h2>
     <div class="analytics-toolbar">
       <label>Период<select id="analyticsPeriod"><option value="7">7 дней</option><option value="30" selected>30 дней</option><option value="90">90 дней</option><option value="0">Всё время</option></select></label>
       <label>Валюта<select id="analyticsCurrency"><option value="">Загрузка…</option></select></label>
@@ -202,7 +290,7 @@
     <p class="muted nomargin">Возвраты учитываются по дате подтверждения. Если провайдер не передаёт сумму полного возврата, для расчёта используется исходная сумма доната. График за период «Всё время» показывает последние 365 дней.</p>
   </section>
   <section id="monitoring-settings">
-    <h2>Состояние системы</h2>
+    <h2>Состояние сайта</h2>
     <div class="monitor-toolbar">
       <span id="monitorOverall" class="monitor-state" role="status" aria-live="polite">Проверка…</span>
       <div class="monitor-actions"><span id="monitorUpdated" class="muted">—</span><button type="button" id="monitorRefresh">Обновить</button></div>
@@ -224,23 +312,86 @@
     <p class="monitor-note">Nginx и systemd контролируются на уровне VPS и не считаются исправными только потому, что отвечает приложение. Их статус требует отдельной host-level проверки.</p>
   </section>
   <section id="history-settings">
-    <h2>Финансовый журнал</h2>
+    <h2>История платежей</h2>
     <div class="history-tools">
       <label>Поиск по имени, сообщению или ID<input id="txSearch" type="search" maxlength="100" placeholder="Например, имя или номер платежа"></label>
       <label>Статус<select id="txStatus"><option value="">Все статусы</option><option value="created">Создаётся</option><option value="pending">Ожидает оплаты</option><option value="paid">Оплачен</option><option value="partially_refunded">Частично возвращён</option><option value="refunded">Возвращён</option><option value="canceled">Отменён</option><option value="failed">Ошибка</option><option value="expired">Истёк</option></select></label>
       <label>Способ оплаты<select id="txProvider"><option value="">Все способы</option><option value="yookassa">ЮKassa</option><option value="nowpayments">NOWPayments</option><option value="cryptopay">Crypto Pay</option></select></label>
-      <button type="button" id="txExport">Экспорт CSV</button>
+      <button type="button" id="txExport">Скачать отчёт</button>
     </div>
     <div class="table-wrap"><table><thead><tr><th>Время</th><th>Имя</th><th>Сумма</th><th>Возврат</th><th>Способ</th><th>Статус</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
     <div class="history-footer"><span id="txCount" class="muted" aria-live="polite">Загрузка…</span><div class="history-pager"><button type="button" id="txPrev">Назад</button><span id="txPage" class="muted">1 / 1</span><button type="button" id="txNext">Далее</button></div></div>
   </section>
+    </div>
+  </div>
 </main>
 
 <div class="bar"><button class="primary" id="save">Сохранить</button><span id="status" role="status" aria-live="polite"></span></div>
 
+
+<div class="onboarding-backdrop" id="onboarding" hidden><div class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+  <p class="eyebrow">Быстрое знакомство</p><h2 id="onboardingTitle">Добро пожаловать в админ-панель</h2>
+  <p>Основные задачи находятся в меню. Выбирайте нужное действие по названию — технические знания не требуются.</p>
+  <ol class="onboarding-steps">
+    <li><span class="step-number">1</span><span><strong>История платежей</strong><br>Найдите донат и проверьте его статус.</span></li>
+    <li><span class="step-number">2</span><span><strong>Статистика доходов</strong><br>Посмотрите поступления, возвраты и чистый доход.</span></li>
+    <li><span class="step-number">3</span><span><strong>Состояние сайта</strong><br>Проверьте, всё ли работает и есть ли предупреждения.</span></li>
+    <li><span class="step-number">4</span><span><strong>Настройки и OBS</strong><br>Измените оформление и проверьте оповещения.</span></li>
+  </ol><div class="onboarding-actions"><button type="button" id="closeOnboarding">Понятно, начать работу</button></div>
+</div></div>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const NAV_HELP = {
+  dashboard:"Краткий обзор донатов и состояния сервиса.",
+  "history-settings":"Найдите платёж по имени, статусу или способу оплаты и скачайте отчёт.",
+  "payment-settings":"Настройте суммы, валюту и доступные способы оплаты.",
+  "delivery-settings":"Посмотрите, сколько уведомлений ожидают отправки и сколько уже доставлено.",
+  "alert-settings":"Настройте внешний вид уведомления, которое появляется на стриме.",
+  "tts-settings":"Выберите голос и настройте озвучивание сообщений зрителей.",
+  "tiers-settings":"Задайте отдельное оформление для донатов разного размера.",
+  "test-settings":"Отправьте тестовое уведомление, чтобы проверить оформление и звук.",
+  "overlay-settings":"Скопируйте ссылку и добавьте её в OBS как источник «Браузер».",
+  "analytics-settings":"Посмотрите поступления, возвраты и доход за выбранный период.",
+  "monitoring-settings":"Проверьте базу данных, платежи, OBS и другие важные компоненты."
+};
+function updateNavigation(){
+  const id=location.hash.slice(1)||"dashboard";
+  const target=$(id)?id:"dashboard";
+  const link=document.querySelector('.admin-nav a[href="#'+target+'"]');
+  document.querySelectorAll(".admin-nav a").forEach(a=>{
+    if(a.getAttribute("href")==="#"+target)a.setAttribute("aria-current","page");
+    else a.removeAttribute("aria-current");
+  });
+  $("breadcrumbCurrent").textContent=link?link.textContent.trim():"Главная";
+  $("pageHelp").textContent=NAV_HELP[target]||NAV_HELP.dashboard;
+}
+window.addEventListener("hashchange",updateNavigation);
+document.querySelectorAll(".admin-nav a,.dashboard-links a").forEach(a=>a.addEventListener("click",()=>window.setTimeout(updateNavigation,0)));
+$("navSearch").addEventListener("input",()=>{
+  const q=$("navSearch").value.trim().toLocaleLowerCase("ru-RU");
+  document.querySelectorAll(".nav-group").forEach(group=>{
+    let count=0;
+    group.querySelectorAll("a").forEach(a=>{
+      const text=(a.textContent+" "+(a.dataset.label||"")).toLocaleLowerCase("ru-RU");
+      a.hidden=!!q&&!text.includes(q);if(!a.hidden)count++;
+    });
+    group.hidden=count===0;
+  });
+});
+function showOnboarding(){$("onboarding").hidden=false;$("closeOnboarding").focus();}
+function closeOnboarding(){
+  $("onboarding").hidden=true;
+  try{localStorage.setItem("donation-admin-onboarding-v1","done");}catch(e){}
+}
+$("showOnboarding").addEventListener("click",showOnboarding);
+$("closeOnboarding").addEventListener("click",closeOnboarding);
+$("onboarding").addEventListener("click",e=>{if(e.target===$("onboarding"))closeOnboarding();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("onboarding").hidden)closeOnboarding();});
+try{if(!localStorage.getItem("donation-admin-onboarding-v1"))showOnboarding();}catch(e){}
+updateNavigation();
+
 const ANIMS = { bounce: "Подпрыгивание", slide: "Выезд сбоку", zoom: "Увеличение", fade: "Появление", shake: "Тряска", flip: "Переворот" };
 let cfg, media = [];
 
@@ -394,7 +545,7 @@ function monitorDate(value) {
 async function loadMonitoring() {
   const health = await api("/api/admin/system-health");
   const statusNames = { ok: "Система работает", warning: "Есть предупреждения", critical: "Критическая проблема" };
-  $("monitorOverall").textContent = statusNames[health.status] || "Статус неизвестен";
+  $("monitorOverall").textContent = statusNames[health.status] || "Статус неизвестен";\n  $("dashHealth").textContent = health.status === "ok" ? "Всё в порядке" : health.status === "critical" ? "Есть проблема" : "Нужна проверка";\n  $("dashHealth").className = "status-pill " + (health.status === "ok" ? "ok" : "warning");\n  $("dashPayments").textContent = health.payments.providers.length ? "Подключены" : "Не настроены";\n  $("dashPayments").className = "status-pill " + (health.payments.providers.length ? "ok" : "warning");\n  $("dashObs").textContent = health.obs.status === "connected" ? "Подключён" : "Нет подключения";\n  $("dashObs").className = "status-pill " + (health.obs.status === "connected" ? "ok" : "warning");\n  $("dashBackup").textContent = health.backup.last_success_at ? "Есть копия" : "Нет данных";\n  $("dashBackup").className = "status-pill " + (health.backup.last_success_at ? "ok" : "warning");
   $("monitorOverall").className = "monitor-state " + (["ok", "warning", "critical"].includes(health.status) ? health.status : "");
   $("monDatabase").textContent = health.database.status === "ok"
     ? "OK · " + formatBytes(health.database.size_bytes + health.database.wal_size_bytes)
@@ -502,7 +653,7 @@ async function loadAnalytics() {
     currencySelect.innerHTML = nextCurrencies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
   }
   currencySelect.value = data.currency;
-  $("anaGross").textContent = formatMoney(data.gross, data.currency);
+  $("anaGross").textContent = formatMoney(data.gross, data.currency);\n  $("dashGross").textContent = formatMoney(data.gross, data.currency);\n  $("dashRefunds").textContent = formatMoney(data.refunded, data.currency);\n  $("dashNet").textContent = formatMoney(data.net, data.currency);\n  $("dashCount").textContent = data.donation_count.toLocaleString("ru-RU");
   $("anaRefunded").textContent = formatMoney(data.refunded, data.currency);
   $("anaRefundCount").textContent = data.refund_count ? "(" + data.refund_count + ")" : "";
   $("anaNet").textContent = formatMoney(data.net, data.currency);
@@ -537,7 +688,7 @@ async function loadHistory() {
     return `<tr><td>${new Date(r.created_at * 1000).toLocaleString("ru-RU")}</td>
       <td>${esc(r.donor_name)}</td><td>${esc(r.amount)} ${esc(r.currency)}</td><td>${refundLabel}</td>
       <td>${TX_PROVIDER[r.provider] || esc(r.provider)}</td><td>${TX_STATUS[r.status] || esc(r.status)}</td>
-      <td>${r.status === "paid" || r.status === "partially_refunded" ? `<button type="button" data-id="${r.id}" class="replay">Повторить</button>` : ""}</td></tr>`;
+      <td>${r.status === "paid" || r.status === "partially_refunded" ? `<button type="button" data-id="${r.id}" class="replay">Повторить оповещение</button>` : ""}</td></tr>`;
   }).join("") || `<tr><td colspan="7" class="muted">По выбранным условиям донатов нет</td></tr>`;
   $("txCount").textContent = `Найдено: ${result.total.toLocaleString("ru-RU")}`;
   $("txPage").textContent = `${txPage} / ${pages}`;
