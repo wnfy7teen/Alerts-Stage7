@@ -16,6 +16,7 @@ class Fake:
         self.np_status, self.np_price, self.np_price_currency = "waiting", 300, "rub"
         self.cp_status, self.cp_amount, self.cp_fiat = "active", "300.00", "RUB"
         self.yk_created, self.np_created, self.alerts = [], [], []
+        self.yk_refund_data = None
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         url, method = str(request.url), request.method
@@ -28,6 +29,8 @@ class Fake:
             return httpx.Response(200, json={"id": "yk-1", "status": self.yk_status, "paid": self.yk_status == "succeeded",
                                              "amount": {"value": self.yk_amount, "currency": self.yk_currency},
                                              "metadata": {"donation_id": did}})
+        if url == "https://api.yookassa.ru/v3/refunds/rf-1":
+            return httpx.Response(200, json=self.yk_refund_data or {})
         if url == "https://api.nowpayments.io/v1/payment" and method == "POST":
             self.np_created.append(json.loads(request.content))
             return httpx.Response(201, json={"payment_id": 777, "payment_status": "waiting", "network": "trx",
