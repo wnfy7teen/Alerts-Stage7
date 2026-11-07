@@ -18,6 +18,20 @@ H = {"X-Requested-With": "donation-admin"}
 GIF = b"GIF89a" + b"\x00" * 30
 
 
+def test_failure_limiter_prunes_expired_unique_ips(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(sec.time, "monotonic", lambda: clock[0])
+    limiter = sec.FailureLimiter(10, 900)
+
+    for i in range(10_001):
+        limiter.fail(f"ip-{i}")
+
+    assert len(limiter._fails) == 10_001
+    clock[0] = 901.0
+    limiter.fail("fresh-ip")
+    assert list(limiter._fails) == ["fresh-ip"]
+
+
 # ───── заголовки и CSP ─────
 def test_headers_and_csp_nonce(client):
     a, b = client.get("/"), client.get("/")
