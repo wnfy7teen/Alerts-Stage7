@@ -77,7 +77,7 @@ jobs:
               'DESIGNED &amp; DEVELOPED BY' \
               'Krisofer Biksan' \
               'Web Developer · Technical Support' \
-              'mailto:usdtuser1@gmail.com' \
+              'mailto:usdtuser1@proton.me' \
               'https://t.me/web3ResearchCN' \
               '© 2026 Kristofer Biksan. All rights reserved.'; do
               if ! grep -Fq "${EXPECTED}" "${OUT}"; then
