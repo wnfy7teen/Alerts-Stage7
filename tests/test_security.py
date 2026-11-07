@@ -125,6 +125,14 @@ def test_body_size_limit(client):
     assert client.post("/api/donations", content=b"x" * (1024 * 1024 + 10)).status_code == 413
 
 
+def test_webhook_and_csp_body_limits(client):
+    oversized = b"x" * (server.WEBHOOK_BODY_LIMIT + 1)
+    for path in ("/api/webhooks/yookassa", "/api/webhooks/nowpayments",
+                 "/api/webhooks/cryptopay", "/crypto-webhook"):
+        assert client.post(path, content=oversized).status_code == 413, path
+    assert client.post("/api/csp-report", content=b"x" * (server.CSP_REPORT_BODY_LIMIT + 1)).status_code == 413
+
+
 def test_websocket_limit(client):
     with ExitStack() as stack:
         for _ in range(10):
