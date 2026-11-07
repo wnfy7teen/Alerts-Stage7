@@ -51,6 +51,7 @@ def client(fake):
         server.load_cfg().tts_enabled = False  # без обращения к серверам озвучки
         with closing(pay.db()) as db:
             db.execute("DELETE FROM alert_outbox")
+            db.execute("DELETE FROM refunds")
             db.execute("DELETE FROM donations")
             db.commit()
         yield c
