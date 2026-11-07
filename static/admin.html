@@ -85,11 +85,13 @@
   th{background:#0D1523;color:#F0B7CD;font-weight:700}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#211A27}
   td button{min-height:32px;padding:5px 9px;font-size:12px}
   #status,#testStatus{color:#F4D7E3;font-size:13px}
-  .admin-header-actions{display:flex;align-items:center;gap:10px;flex:0 0 auto;min-width:0}
-  #save{width:132px;min-width:132px;height:40px;min-height:40px;padding:8px 12px;font-size:14px;line-height:1.2;white-space:nowrap}
-  #status{min-width:0;max-width:min(36vw,420px);overflow-wrap:anywhere}
+  .admin-save-fab{position:fixed;right:24px;bottom:24px;z-index:25;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+  .admin-save-fab>*{pointer-events:auto}
+  #save{width:132px;min-width:132px;height:40px;min-height:40px;padding:8px 12px;font-size:14px;line-height:1.2;white-space:nowrap;box-shadow:0 8px 28px rgba(0,0,0,.38)}
+  #status{min-width:0;max-width:min(36vw,420px);padding:7px 10px;border:1px solid #3B4A61;border-radius:9px;background:#111827;color:#F4D7E3;font-size:12px;overflow-wrap:anywhere;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+  #status:empty{display:none}
   @media(max-width:760px){main{padding:24px 14px 32px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-columns{grid-template-columns:minmax(0,1fr)}.monitor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.history-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media(max-width:520px){main{padding:19px 11px 32px}.admin-header{display:block}.admin-header-actions{margin-top:14px;justify-content:flex-start;flex-wrap:wrap}#status{max-width:100%;flex-basis:100%}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.history-tools{grid-template-columns:minmax(0,1fr)}.history-footer{align-items:flex-start;flex-direction:column}}
+  @media(max-width:520px){main{padding:19px 11px 32px}.admin-header{display:block}.admin-save-fab{right:14px;bottom:14px}#status{max-width:min(78vw,360px)}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.history-tools{grid-template-columns:minmax(0,1fr)}.history-footer{align-items:flex-start;flex-direction:column}}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
   main{width:auto;margin:0;padding:0;display:block;gap:0}
@@ -151,7 +153,7 @@
 </head>
 <body>
 <main class="admin-shell">
-  <header class="admin-header"><div><p class="eyebrow">Панель управления</p><h1>Донаты и оповещения</h1><p class="admin-intro">Здесь можно управлять донатами, настройками и работой оповещений.</p></div><div class="admin-header-actions"><button type="button" class="primary" id="save">Сохранить</button><span id="status" role="status" aria-live="polite"></span></div></header>
+  <header class="admin-header"><div><p class="eyebrow">Панель управления</p><h1>Донаты и оповещения</h1><p class="admin-intro">Здесь можно управлять донатами, настройками и работой оповещений.</p></div></header>
   <div class="admin-layout">
     <aside class="admin-sidebar" aria-label="Главное меню">
       <div class="sidebar-brand"><span class="sidebar-mark">V</span><span>Управление сайтом</span></div>
@@ -771,5 +773,6 @@ $("hist").addEventListener("click", async e => {
   setInterval(loadMonitoring, 60000);
 })();
 </script>
+<div class="admin-save-fab" aria-label="Сохранение настроек"><button type="button" class="primary" id="save">Сохранить</button><span id="status" role="status" aria-live="polite"></span></div>
 </body>
 </html>
