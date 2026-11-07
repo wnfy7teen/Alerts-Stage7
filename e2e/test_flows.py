@@ -74,10 +74,10 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     problems = collect_problems(page)
     page.goto(base_url + "/admin")
     expect(page.get_by_role("heading", level=1)).to_have_text("Донаты и оповещения")
-    expect(page.locator("#overlayLink")).to_contain_text("/overlay?key=")
     # The first-visit onboarding modal intentionally blocks the page until dismissed.
     if page.locator("#onboarding").is_visible():
         page.get_by_role("button", name="Понятно, начать работу").click()
+    expect(page.locator("#overlayLink")).to_contain_text("/overlay?key=", timeout=15000)
     save_button = page.locator("#save")
     expect(save_button).to_be_visible()
     expect(page.locator(".bar")).to_have_count(0)
