@@ -178,11 +178,14 @@ def test_poller_credits_without_webhook(client, fake):
 
 
 def test_prune_delivered_alerts_preserves_pending_and_respects_batch(client, fake):
-    first = donate(client, key="prune-first-0000000000000000").json()["donation_id"]
-    second = donate(client, key="prune-second-000000000000000").json()["donation_id"]
-    third = donate(client, key="prune-third-0000000000000000").json()["donation_id"]
+    first, second, third = "1" * 32, "2" * 32, "3" * 32
     now = pay.time.time()
     with closing(pay.db()) as db:
+        db.executemany(
+            "INSERT INTO donations(id,amount,currency,status,donor_name,message,provider,created_at) "
+            "VALUES(?,100,'RUB','paid','test','test','yookassa',?)",
+            [(first, now - 100000), (second, now - 100000), (third, now - 100000)],
+        )
         db.executemany(
             "INSERT INTO alert_outbox(donation_id,created_at,attempts,next_attempt_at,delivered_at) "
             "VALUES(?,?,?,?,?)",
