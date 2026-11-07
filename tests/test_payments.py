@@ -51,6 +51,13 @@ def test_yookassa_widget_checkout_and_idempotency(client, fake):
     assert donate(client, amount=999).status_code == 409  # тот же ключ, другие параметры
 
 
+def test_idempotency_key_rejects_changed_donor_payload(client):
+    original = donate(client, name="Вася", message="Привет")
+    assert original.status_code == 200
+    assert donate(client, name="Другой", message="Привет").status_code == 409
+    assert donate(client, name="Вася", message="Другое сообщение").status_code == 409
+
+
 def test_idempotency_key_required(client):
     assert client.post("/api/donations", json={"method": "yookassa", "amount": 300}).status_code == 400
 
