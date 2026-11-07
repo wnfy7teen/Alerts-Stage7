@@ -23,10 +23,11 @@ from dotenv import load_dotenv
 from typing import Literal
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, WebSocket
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 import payments as pay
 import security as sec
@@ -316,20 +317,28 @@ hook_limiter = pay.RateLimiter(limit=120, window=60)
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
     path, ip = request.url.path, sec.client_ip(request)
+
+    def reject(detail: str, status: int) -> JSONResponse:
+        response = JSONResponse({"detail": detail}, status_code=status)
+        sec.apply_common_headers(response, request, path)
+        return response
+
     if sec.FORCE_HTTPS and pay.PUBLIC_URL.startswith("https://") and sec.forwarded_proto(request) == "http" and path != "/api/health":
-        target = pay.PUBLIC_URL + path + ("?" + request.url.query if request.url.query else "")  # адрес из настроек, не из Host
+        target = pay.PUBLIC_URL + path + ("?" + request.url.query if request.url.query else "")
         return RedirectResponse(target, status_code=308)
+
     limit = 21 * 1024 * 1024 if path == "/api/admin/upload" else 1024 * 1024
     cl = request.headers.get("content-length", "")
     if cl.isdigit() and int(cl) > limit:
-        return JSONResponse({"detail": "Слишком большой запрос"}, status_code=413)
+        return reject("Слишком большой запрос", 413)
     if path.startswith("/api/webhooks") or path == "/crypto-webhook":
         if not hook_limiter.allow(ip):
-            return JSONResponse({"detail": "Слишком часто"}, status_code=429)
+            return reject("Слишком часто", 429)
     elif path.startswith("/api/") and not api_limiter.allow(ip):
-        return JSONResponse({"detail": "Слишком много запросов"}, status_code=429)
+        return reject("Слишком много запросов", 429)
     if (path == "/admin" or path.startswith("/api/admin")) and sec.ADMIN_ALLOWED and not sec.ip_in(ip, sec.ADMIN_ALLOWED):
-        return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return reject("Not Found", 404)
+
     response = await call_next(request)
     sec.apply_common_headers(response, request, path)
     return response
@@ -488,11 +497,15 @@ def _err(e: pay.PaymentError) -> HTTPException:
 
 
 @app.post("/api/donations")
-async def create_donation(body: DonationIn, req: Request):
+async def create_donation(req: Request):
     """Создаёт платёж. Заголовок Idempotency-Key защищает от двойного списания при повторной отправке."""
     if not donate_limiter.allow(sec.client_ip(req)):
         raise HTTPException(429, "Слишком много попыток, подождите несколько минут")
     sec.check_origin(req)
+    try:
+        body = DonationIn.model_validate_json(await read_limited_body(req, 1024 * 1024))
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors()) from None
     idem = req.headers.get("idempotency-key", "")
     if not IDEM_RE.match(idem):
         raise HTTPException(400, "Нужен заголовок Idempotency-Key (16–64 символа: буквы, цифры, - и _)")

@@ -157,6 +157,16 @@ def test_global_api_limit(client, monkeypatch):
 def test_body_size_limit(client):
     assert client.post("/api/donations", content=b"x" * (1024 * 1024 + 10)).status_code == 413
 
+    def chunks():
+        yield b"x" * 600_000
+        yield b"y" * 600_000
+
+    response = client.post(
+        "/api/donations", content=chunks(),
+        headers={"Content-Type": "application/json", "Idempotency-Key": KEY},
+    )
+    assert response.status_code == 413
+
 
 def test_webhook_and_csp_body_limits(client):
     oversized = b"x" * (server.WEBHOOK_BODY_LIMIT + 1)
