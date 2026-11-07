@@ -62,6 +62,21 @@ footer{margin-top:24px;padding:0 4px;color:var(--text-muted);font-size:13px;line
 .links{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 8px;padding:0;list-style:none}.links a{display:inline-block;padding:7px 0;color:#F08A91;font-weight:700;text-underline-offset:3px}
 input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #F08A91;outline-offset:3px}
 @media(max-width:520px){body{padding:22px 13px 24px}header{padding:4px 3px 18px}.box{gap:18px;padding:19px 17px;border-radius:15px}.chips{grid-template-columns:repeat(2,minmax(0,1fr))}.chips button{min-height:48px}.method .card{min-height:64px;padding:12px}}
+@media(max-width:380px){
+  body{padding:18px 10px 20px}
+  header{padding-bottom:16px}
+  h1{font-size:27px}
+  .box{gap:16px;padding:16px 13px;border-radius:12px}
+  .amount{min-height:76px;gap:8px;padding:9px 12px}
+  .amount input,.amount input#amount,.amount span{font-size:clamp(30px,8vw,38px)}
+  .amount input{min-height:48px}
+  .chips{gap:8px}
+  .chips button{min-height:48px;padding:8px 6px;font-size:13px}
+  .method .card{min-height:62px;gap:10px;padding:11px 12px}
+  .method input:checked+.card{padding:10px 11px}
+  .hint{font-size:12px}
+  textarea{min-height:96px}
+}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
