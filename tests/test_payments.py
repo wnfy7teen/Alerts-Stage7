@@ -178,9 +178,9 @@ def test_poller_credits_without_webhook(client, fake):
 
 
 def test_prune_delivered_alerts_preserves_pending_and_respects_batch(client, fake):
-    first = donate(client, key="prune-first").json()["donation_id"]
-    second = donate(client, key="prune-second").json()["donation_id"]
-    third = donate(client, key="prune-third").json()["donation_id"]
+    first = donate(client, key="prune-first-0000000000000000").json()["donation_id"]
+    second = donate(client, key="prune-second-000000000000000").json()["donation_id"]
+    third = donate(client, key="prune-third-0000000000000000").json()["donation_id"]
     now = pay.time.time()
     with closing(pay.db()) as db:
         db.executemany(
