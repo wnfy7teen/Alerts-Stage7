@@ -802,7 +802,7 @@ async def handle_yookassa_webhook(body: dict, client_ip: str) -> None:
         return
     if body.get("event") == "refund.succeeded":
         refund_id = obj.get("id")
-        if not isinstance(refund_id, str) or not refund_id:
+        if not isinstance(refund_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", refund_id):
             return
         refund = await _yk_refund_data(refund_id)
         if not refund:
