@@ -41,7 +41,8 @@
                         40% { transform: translateX(14px) rotate(1deg) } 60% { transform: translateX(-9px) }
                         80% { transform: translateX(9px) } }
   @keyframes outAnim  { to { transform: translateY(-30px) scale(.92); opacity: 0 } }
-  @media (prefers-reduced-motion: reduce) { #card { animation-duration: .01s !important; } }
+  /* OBS Browser Source can report prefers-reduced-motion=reduce from the host OS.
+     Do not collapse donation entrance/exit animations: these are an explicit alert setting. */
 
 
   /* High-contrast readable interface */
