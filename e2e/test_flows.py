@@ -78,6 +78,11 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     # The first-visit onboarding modal intentionally blocks the page until dismissed.
     if page.locator("#onboarding").is_visible():
         page.get_by_role("button", name="Понятно, начать работу").click()
+    save_button = page.locator("#save")
+    expect(save_button).to_be_visible()
+    save_size = save_button.evaluate("(el) => ({ width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height })")
+    assert 100 <= save_size["width"] <= 150
+    assert 36 <= save_size["height"] <= 44
     page.get_by_role("button", name="Отправить тестовый алерт").click()
     expect(page.locator("#testStatus")).to_contain_text("Оверлей не подключён")
     assert problems == []
