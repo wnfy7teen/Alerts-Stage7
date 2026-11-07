@@ -39,6 +39,10 @@
   .muted { color: var(--muted); }
   .flush { margin-top: 0; }
   .nomargin { margin: 0; }
+  .delivery-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .delivery-stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .delivery-stat strong { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  #deliveryErrors { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -108,6 +112,18 @@
     </div>
     <p><button id="sendTest" type="button">Отправить тестовый алерт</button> <span id="testStatus" class="muted"></span></p>
     <p class="muted nomargin">Тест использует сохранённые настройки — сначала нажмите «Сохранить».</p>
+  </section>
+
+  <section>
+    <h2>Доставка алертов</h2>
+    <div class="delivery-stats" aria-live="polite">
+      <div class="delivery-stat"><span class="muted">Ожидают отправки</span><strong id="deliveryPending">—</strong></div>
+      <div class="delivery-stat"><span class="muted">Доставлено</span><strong id="deliveryDone">—</strong></div>
+      <div class="delivery-stat"><span class="muted">Попыток для ожидающих</span><strong id="deliveryAttempts">—</strong></div>
+      <div class="delivery-stat"><span class="muted">Самый старый алерт</span><strong id="deliveryOldest">—</strong></div>
+    </div>
+    <p id="deliveryUpdated" class="muted nomargin">Загрузка…</p>
+    <ul id="deliveryErrors"></ul>
   </section>
 
   <section>
@@ -241,6 +257,22 @@ $("sendTest").onclick = async () => {
   } catch (err) { $("testStatus").textContent = err.message; }
 };
 
+async function loadDelivery() {
+  try {
+    const s = await api("/api/admin/delivery");
+    $("deliveryPending").textContent = s.pending;
+    $("deliveryDone").textContent = s.delivered;
+    $("deliveryAttempts").textContent = s.pending_attempts;
+    $("deliveryOldest").textContent = s.oldest_pending_seconds === null ? "—" :
+      s.oldest_pending_seconds < 60 ? s.oldest_pending_seconds + " сек." :
+      Math.floor(s.oldest_pending_seconds / 60) + " мин.";
+    $("deliveryErrors").innerHTML = s.errors.map(e => `<li>${esc(e.code)}: ${esc(e.count)}</li>`).join("") || "";
+    $("deliveryUpdated").textContent = "Обновлено: " + new Date().toLocaleTimeString("ru-RU");
+  } catch (err) {
+    $("deliveryUpdated").textContent = "Не удалось загрузить состояние очереди: " + err.message;
+  }
+}
+
 async function loadHistory() {
   const rows = await api("/api/admin/history");
   const st = { paid: "оплачен", pending: "ждёт оплаты", expired: "истёк" };
@@ -260,7 +292,9 @@ $("hist").addEventListener("click", async e => {
   fill();
   $("overlayLink").textContent = (await api("/api/admin/links")).overlay;
   loadHistory();
+  loadDelivery();
   setInterval(loadHistory, 15000);
+  setInterval(loadDelivery, 15000);
 })();
 </script>
 </body>
