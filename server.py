@@ -23,10 +23,11 @@ from dotenv import load_dotenv
 from typing import Literal
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, WebSocket
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 import payments as pay
 import security as sec
@@ -338,26 +339,6 @@ async def security_middleware(request: Request, call_next):
     if (path == "/admin" or path.startswith("/api/admin")) and sec.ADMIN_ALLOWED and not sec.ip_in(ip, sec.ADMIN_ALLOWED):
         return reject("Not Found", 404)
 
-    # Content-Length можно опустить и отправить тело чанками. Читаем поток с жёстким лимитом,
-    # затем передаём тот же буфер обработчику FastAPI.
-    if request.method not in ("GET", "HEAD", "OPTIONS"):
-        body = bytearray()
-        async for chunk in request.stream():
-            if len(body) + len(chunk) > limit:
-                return reject("Слишком большой запрос", 413)
-            body.extend(chunk)
-        buffered_body = bytes(body)
-        replayed = False
-
-        async def replay_receive():
-            nonlocal replayed
-            if replayed:
-                return {"type": "http.disconnect"}
-            replayed = True
-            return {"type": "http.request", "body": buffered_body, "more_body": False}
-
-        request._receive = replay_receive
-
     response = await call_next(request)
     sec.apply_common_headers(response, request, path)
     return response
@@ -516,11 +497,15 @@ def _err(e: pay.PaymentError) -> HTTPException:
 
 
 @app.post("/api/donations")
-async def create_donation(body: DonationIn, req: Request):
+async def create_donation(req: Request):
     """Создаёт платёж. Заголовок Idempotency-Key защищает от двойного списания при повторной отправке."""
     if not donate_limiter.allow(sec.client_ip(req)):
         raise HTTPException(429, "Слишком много попыток, подождите несколько минут")
     sec.check_origin(req)
+    try:
+        body = DonationIn.model_validate_json(await read_limited_body(req, 1024 * 1024))
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors()) from None
     idem = req.headers.get("idempotency-key", "")
     if not IDEM_RE.match(idem):
         raise HTTPException(400, "Нужен заголовок Idempotency-Key (16–64 символа: буквы, цифры, - и _)")
