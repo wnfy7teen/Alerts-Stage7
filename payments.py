@@ -418,8 +418,8 @@ def analytics(*, days: int = 30, currency: str = "") -> dict:
             (period_start, now, selected_currency),
         ).fetchall()
 
-    payments_by_day = {r["day"]: r for r in daily_payments}
-    refunds_by_day = {r["day"]: r for r in daily_refunds}
+    payments_by_day = {r["day"]: dict(r) for r in daily_payments}
+    refunds_by_day = {r["day"]: dict(r) for r in daily_refunds}
     daily = []
     for day_offset in range(chart_days):
         day = (chart_start_date + timedelta(days=day_offset)).isoformat()
