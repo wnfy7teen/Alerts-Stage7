@@ -323,6 +323,20 @@ def test_health(client):
 
 
 
+
+def test_paid_handler_skips_alert_generation_when_overlay_is_offline(monkeypatch):
+    import server
+
+    monkeypatch.setattr(server, "clients", set())
+
+    async def unexpected_alert(*args, **kwargs):
+        raise AssertionError("alert generation must be skipped while OBS is offline")
+
+    monkeypatch.setattr(server, "make_alert", unexpected_alert)
+    row = {"donor_name": "Test", "message": "Test", "amount": 100, "currency": "RUB", "id": "a" * 32}
+    assert asyncio.run(server.on_paid(row)) is False
+
+
 def test_admin_replay_reports_offline_overlay(client, monkeypatch):
     import server
 
