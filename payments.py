@@ -336,7 +336,7 @@ def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", pro
             "SELECT id, amount, currency, status, donor_name, message, provider, provider_txn_id, "
             "created_at, paid_at, "
             "(SELECT COUNT(*) FROM refunds WHERE donation_id=donations.id AND status='succeeded') AS refund_count, "
-            "(SELECT COALESCE(SUM(amount), 0) FROM refunds WHERE donation_id=donations.id AND status='succeeded') "
+            "(SELECT SUM(amount) FROM refunds WHERE donation_id=donations.id AND status='succeeded') "
             "AS refunded_amount FROM donations "
             "WHERE (?='' OR status=?) AND (?='' OR provider=?) "
             "AND (?='' OR id LIKE ? OR provider_txn_id LIKE ? OR donor_name LIKE ? OR message LIKE ?) "
