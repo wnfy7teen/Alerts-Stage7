@@ -59,6 +59,16 @@ textarea{min-height:104px;resize:vertical;line-height:1.5}
 .faq-answer p{margin:0;padding:0 24px 16px 2px;color:var(--text-muted);font-size:14px;line-height:1.65}
 .faq-item[open] .faq-answer{animation:faq-reveal .18s ease both}@keyframes faq-reveal{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
 footer{margin-top:24px;padding:0 4px;color:var(--text-muted);font-size:13px;line-height:1.55}footer p{margin:10px 0 0}
+.developer-credit{margin-top:24px;padding-top:18px;border-top:1px solid var(--border);text-align:center}
+.developer-credit .dev-label{margin:0;color:var(--text-muted);font-size:10px;font-weight:800;letter-spacing:.14em}
+.developer-credit .dev-name{margin:7px 0 2px;color:var(--text-main);font-size:23px;font-weight:850;letter-spacing:-.035em}
+.developer-credit .dev-role{margin:0;color:var(--text-muted);font-size:12px}
+.developer-contact{display:flex;justify-content:center;flex-wrap:wrap;gap:18px 28px;margin-top:17px}
+.developer-contact div{display:grid;gap:3px}
+.developer-contact span{color:var(--text-muted);font-size:11px}
+.developer-contact a{color:#F0B7CD;font-weight:700;text-decoration:none;text-underline-offset:3px;overflow-wrap:anywhere}
+.developer-contact a:hover{text-decoration:underline}
+.developer-credit .dev-copyright{margin:17px 0 0;padding-top:12px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted)}
 .links{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 8px;padding:0;list-style:none}.links a{display:inline-block;padding:7px 0;color:#F0B7CD;font-weight:700;text-underline-offset:3px}
 input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #F0B7CD;outline-offset:3px}
 @media(max-width:520px){body{padding:22px 13px 24px}header{padding:4px 3px 18px}.box{gap:18px;padding:19px 17px;border-radius:15px}.chips{grid-template-columns:repeat(2,minmax(0,1fr))}.chips button{min-height:48px}.method .card{min-height:64px;padding:12px}}
@@ -140,6 +150,25 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
   <footer>
     {{LINKS}}
     <p>Имя и сообщение показываются в эфире стрима.</p>
+
+    <section class="developer-credit" aria-label="Информация о разработчике">
+      <p class="dev-label">DESIGNED &amp; DEVELOPED BY</p>
+      <p class="dev-name">Krisofer Biksan</p>
+      <p class="dev-role">Web Developer · Technical Support</p>
+
+      <div class="developer-contact">
+        <div>
+          <span>Business inquiries</span>
+          <a href="mailto:usdtuser1@proton.me">usdtuser1@proton.me</a>
+        </div>
+        <div>
+          <span>Telegram</span>
+          <a href="https://t.me/web3ResearchCN?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer">@web3ResearchCN</a>
+        </div>
+      </div>
+
+      <p class="dev-copyright">© 2026 Kristofer Biksan. All rights reserved.</p>
+    </section>
   </footer>
 </div>
 <script type="application/json" id="cfg">{{CFG}}</script>
