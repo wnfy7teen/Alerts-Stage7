@@ -7,238 +7,63 @@
 <title>Донаты — настройки</title>
 <link rel="stylesheet" href="/theme.css">
 <style>
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, "Segoe UI", sans-serif; }
-  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; display: grid; gap: 18px; }
-  h1 { margin: 0; font-size: 24px; }
-  h2 { margin: 0 0 12px; font-size: 17px; }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-  label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
-  label.wide { grid-column: 1 / -1; }
-  label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 15px; }
-  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
-    background: var(--brand-white); color: var(--text); font: inherit; }
-  input[type=checkbox] { width: auto; }
-  input[type=color] { padding: 2px; height: 36px; }
-  button { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent;
-    color: var(--text); font: inherit; cursor: pointer; }
-  button.primary { background: var(--action); color: var(--brand-white); border-color: var(--action); font-weight: 600; }
-  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .tier { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-  .tier-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: 600; }
-  .file-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: end; }
-  .file-row .up { position: relative; overflow: hidden; }
-  .file-row .up input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line);
-    padding: 12px 16px; display: flex; gap: 12px; justify-content: center; align-items: center; }
-  #status { color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-  code { background: var(--bg); padding: 2px 6px; border-radius: 6px; word-break: break-all; }
-  .muted { color: var(--muted); }
-  .flush { margin-top: 0; }
-  .nomargin { margin: 0; }
-  .delivery-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-  .delivery-stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-  .delivery-stat strong { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
-  #deliveryErrors { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
-
-  /* Glass / Aurora admin skin */
-  body {
-    min-height: 100vh;
-    background:
-      radial-gradient(ellipse at 8% 0%, rgba(126, 101, 255, .20), transparent 34%),
-      radial-gradient(ellipse at 94% 22%, rgba(66, 151, 255, .12), transparent 32%),
-      var(--bg);
-    color: var(--text);
-  }
-  main { max-width: 1120px; padding: 36px 22px 112px; gap: 18px; }
-  main > h1 {
-    padding: 8px 2px 14px;
-    font-size: clamp(27px, 4vw, 36px);
-    font-weight: 760;
-    letter-spacing: -.045em;
-    background: linear-gradient(110deg, #fff 10%, #c9c1ff 58%, #91caff 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  section {
-    min-width: 0;
-    padding: 22px;
-    border: 1px solid rgba(190, 195, 238, .16);
-    border-radius: 19px;
-    background: linear-gradient(145deg, rgba(31, 35, 57, .82), rgba(15, 18, 31, .78));
-    box-shadow: 0 16px 44px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .035);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-  }
-  section h2 { margin-bottom: 16px; font-size: 16px; font-weight: 680; letter-spacing: -.015em; }
-  .muted, label { color: var(--muted); }
-  label { gap: 7px; line-height: 1.4; }
-  input, select, textarea {
-    min-width: 0;
-    padding: 10px 12px;
-    border: 1px solid rgba(190, 195, 238, .18);
-    border-radius: 11px;
-    background: rgba(8, 10, 18, .62);
-    color: var(--text);
-    color-scheme: dark;
-    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
-  }
-  input::placeholder, textarea::placeholder { color: #777e9a; }
-  input:focus, select:focus, textarea:focus {
-    border-color: rgba(169, 155, 255, .72);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(169, 155, 255, .12);
-  }
-  input[readonly] { color: #bdb3ff; background: rgba(169, 155, 255, .07); }
-  input[type=checkbox] { accent-color: #a99bff; }
-  input[type=color] { min-height: 42px; padding: 4px; background: rgba(8, 10, 18, .62); }
-  button {
-    min-height: 38px;
-    padding: 9px 14px;
-    border: 1px solid rgba(190, 195, 238, .2);
-    border-radius: 11px;
-    background: rgba(255, 255, 255, .035);
-    color: var(--text);
-    font-weight: 560;
-    transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
-  }
-  button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    border-color: rgba(169, 155, 255, .5);
-    background: rgba(169, 155, 255, .09);
-  }
-  button.primary {
-    border-color: transparent;
-    background: linear-gradient(105deg, #c4b9ff, #9ccBff);
-    color: #0b0c16;
-    box-shadow: 0 8px 24px rgba(143, 129, 255, .2);
-    font-weight: 720;
-  }
-  button.primary:hover:not(:disabled) {
-    background: linear-gradient(105deg, #d0c8ff, #afd6ff);
-    box-shadow: 0 11px 28px rgba(143, 129, 255, .27);
-  }
-  button:focus-visible, input:focus-visible, select:focus-visible {
-    outline: 2px solid #bdb3ff;
-    outline-offset: 3px;
-  }
-  #overlayLink {
-    display: block;
-    padding: 13px 15px;
-    border: 1px solid rgba(169, 155, 255, .2);
-    border-radius: 12px;
-    background: rgba(8, 10, 18, .62);
-    color: #c7bdff;
-    line-height: 1.6;
-  }
-  .tier {
-    margin: 0 0 13px;
-    padding: 17px;
-    border: 1px solid rgba(190, 195, 238, .15);
-    border-radius: 15px;
-    background: rgba(8, 10, 18, .27);
-  }
-  .tier-head { color: #d7d2ff; }
-  .file-row { min-width: 0; }
-  .file-row .up button { white-space: nowrap; }
-  .delivery-stat {
-    padding: 15px;
-    border: 1px solid rgba(190, 195, 238, .15);
-    border-radius: 14px;
-    background: linear-gradient(145deg, rgba(169, 155, 255, .08), rgba(8, 10, 18, .36));
-  }
-  .delivery-stat strong { margin-top: 5px; color: #e2ddff; font-size: 25px; letter-spacing: -.03em; }
-  #deliveryErrors { color: #ff9ca5; }
-  table { border-collapse: separate; border-spacing: 0; overflow: hidden; border-radius: 12px; }
-  th { color: #bdb3ff; font-weight: 650; }
-  td, th { padding: 11px 10px; border-bottom: 1px solid rgba(190, 195, 238, .12); }
-  tbody tr:last-child td { border-bottom: 0; }
-  tbody tr:hover { background: rgba(169, 155, 255, .045); }
-  code { background: rgba(8, 10, 18, .65); color: #c7bdff; }
-  .bar {
-    z-index: 5;
-    padding: 13px 20px;
-    border-top: 1px solid rgba(190, 195, 238, .16);
-    background: rgba(12, 14, 25, .82);
-    box-shadow: 0 -12px 36px rgba(0, 0, 0, .2);
-    backdrop-filter: blur(22px);
-    -webkit-backdrop-filter: blur(22px);
-  }
-  #status, #testStatus { color: #c5bdff; }
-  @media (max-width: 640px) {
-    main { padding: 22px 12px 104px; gap: 13px; }
-    section { padding: 17px; border-radius: 16px; }
-    .grid { grid-template-columns: minmax(0, 1fr); }
-    label.wide { grid-column: auto; }
-    .file-row { grid-template-columns: minmax(0, 1fr) auto; }
-    table { display: block; overflow-x: auto; white-space: nowrap; }
-    .delivery-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .bar { justify-content: flex-start; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
-  }
-
-
-
-  /* High-contrast readable interface */
-
-  body { background: #080B12; color: #F8FAFC; }
-  main > h1 { color: #FFFFFF; background: none; -webkit-text-fill-color: #FFFFFF; letter-spacing: -.02em; }
-  section { background: #111827; border: 1px solid #40516B; border-radius: 15px; box-shadow: 0 10px 28px rgba(0,0,0,.28); backdrop-filter: none; -webkit-backdrop-filter: none; }
-  section h2 { color: #FFFFFF; font-size: 18px; }
-  label, .muted { color: #D5DEEA; }
-  input, select, textarea { background: #090F1B; color: #FFFFFF; border: 1px solid #53647D; }
-  input::placeholder, textarea::placeholder { color: #AAB7C9; opacity: 1; }
-  input[readonly] { color: #DCE3FF; background: #17233A; }
-  input:focus, select:focus, textarea:focus { border-color: #B9C5FF; outline: 3px solid rgba(185,197,255,.2); box-shadow: none; }
-  button { background: #1A2639; color: #F8FAFC; border: 1px solid #53647D; }
-  button:hover:not(:disabled) { background: #263A5B; border-color: #A5B4FC; transform: none; }
-  button.primary { background: #455BB5; color: #FFFFFF; border: 1px solid #7188F0; box-shadow: none; }
-  button.primary:hover:not(:disabled) { background: #5268C8; box-shadow: none; }
-  #overlayLink, code { background: #090F1B; color: #DCE3FF; border: 1px solid #53647D; }
-  .tier { background: #0D1523; border: 1px solid #53647D; }
-  .tier-head { color: #FFFFFF; }
-  .delivery-stat { background: #172235; border: 1px solid #53647D; }
-  .delivery-stat strong { color: #FFFFFF; }
-  th { color: #DCE3FF; }
-  td, th { border-bottom: 1px solid #3B4A61; }
-  tbody tr:hover { background: #1A2940; }
-  #deliveryErrors { color: #FF9AA2; }
-  #status, #testStatus { color: #DCE3FF; }
-  .bar { background: #111827; border-top: 1px solid #53647D; box-shadow: 0 -8px 24px rgba(0,0,0,.3); backdrop-filter: none; -webkit-backdrop-filter: none; }
-  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #B9C5FF; outline-offset: 3px; }
-
-
-  /* Soft pink accent theme — preserve the high-contrast graphite layout. */
-  :root {
-    --brand-blue: #E9A8C3;
-    --brand-pink: #E9A8C3;
-    --accent: #E9A8C3;
-    --action: #B35479;
-    --action-hover: #A94F75;
-  }
-  button:hover:not(:disabled) { background: #38232D; border-color: #E9A8C3; }
-  button.primary { background: #B35479; color: #FFFFFF; border: 1px solid #D58EAC; box-shadow: none; }
-  button.primary:hover:not(:disabled) { background: #A94F75; border-color: #E9A8C3; }
-  input[type=checkbox] { accent-color: #D98EAD; }
-  input:focus, select:focus, textarea:focus { border-color: #E9A8C3; outline: 3px solid rgba(233,168,195,.2); box-shadow: none; }
-  input[readonly] { color: #F4D7E3; background: #2A1D29; }
-  #overlayLink, code { color: #F0B7CD; }
-  .tier-head, th { color: #F0B7CD; }
-  .delivery-stat strong, #status, #testStatus { color: #F4D7E3; }
-  tbody tr:hover { background: #211A27; }
-  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #F0B7CD; outline-offset: 3px; }
-
+  *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:20px}
+  body{margin:0;min-height:100vh;background:#080B12;color:#F8FAFC;font:15px/1.5 system-ui,"Segoe UI",sans-serif}
+  main{width:min(1120px,100%);margin:0 auto;padding:34px 22px 116px;display:grid;gap:16px}
+  .admin-header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:4px 2px 10px}
+  .eyebrow{margin:0 0 6px;color:#E9A8C3;font-size:12px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}
+  h1{margin:0;color:#FFF;font-size:clamp(27px,4vw,35px);line-height:1.15;letter-spacing:-.035em}
+  .admin-intro{margin:9px 0 0;color:#CBD5E1}
+  .admin-tag{flex:0 0 auto;padding:7px 11px;border:1px solid #70485B;border-radius:999px;background:#211720;color:#F0B7CD;font-size:12px;font-weight:650}
+  .admin-nav{display:flex;gap:8px;overflow-x:auto;padding:0 0 5px;scrollbar-width:thin}
+  .admin-nav a{flex:0 0 auto;padding:7px 11px;border:1px solid #3B4A61;border-radius:9px;background:#111827;color:#E2E8F0;font-size:13px;text-decoration:none}
+  .admin-nav a:hover,.admin-nav a:focus-visible{border-color:#E9A8C3;color:#F4D7E3;outline:none}
+  section{min-width:0;padding:21px;border:1px solid #3B4A61;border-radius:15px;background:#111827}
+  section h2{margin:0 0 15px;color:#FFF;font-size:17px;font-weight:720;letter-spacing:-.015em}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  label{display:grid;min-width:0;gap:7px;color:#D5DEEA;font-size:13px;line-height:1.4}
+  label.wide{grid-column:1/-1}label.check{display:flex;align-items:center;gap:9px;min-height:42px;color:#F8FAFC;font-size:14px}
+  input,select,textarea{width:100%;min-width:0;min-height:42px;padding:9px 12px;border:1px solid #53647D;border-radius:9px;background:#090F1B;color:#FFF;font:inherit;color-scheme:dark}
+  input::placeholder,textarea::placeholder{color:#AAB7C9;opacity:1}input[readonly]{background:#17233A;color:#F4D7E3}
+  input[type=checkbox]{width:17px;min-height:17px;height:17px;margin:0;accent-color:#D98EAD}
+  input[type=color]{min-height:42px;padding:4px;cursor:pointer}
+  input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #E9A8C3;outline-offset:2px}
+  button{min-height:40px;padding:9px 14px;border:1px solid #53647D;border-radius:9px;background:#1A2639;color:#F8FAFC;font:inherit;font-weight:600;cursor:pointer;transition:background .15s ease,border-color .15s ease}
+  button:hover:not(:disabled){background:#38232D;border-color:#E9A8C3}button:disabled{opacity:.55;cursor:not-allowed}
+  button.primary{border-color:#D58EAC;background:#B35479;color:#FFF}
+  button.primary:hover:not(:disabled){border-color:#E9A8C3;background:#A94F75}
+  .muted{color:#CBD5E1}.flush,.nomargin{margin-top:0}.nomargin{margin-bottom:0}
+  code,#overlayLink{overflow-wrap:anywhere;border:1px solid #53647D;border-radius:9px;background:#090F1B;color:#F0B7CD}
+  #overlayLink{display:block;padding:12px 14px;line-height:1.6}
+  .tier{margin:0 0 12px;padding:16px;border:1px solid #53647D;border-radius:12px;background:#0D1523}.tier:last-child{margin-bottom:0}
+  .tier-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px;color:#F0B7CD;font-weight:700}
+  .tier-head .del{min-height:34px;padding:6px 10px;color:#FFC1C8;border-color:#70414A;background:#291A22}
+  .tier-head .del:hover:not(:disabled){background:#43212C;border-color:#FF9AA2}
+  .file-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:8px;min-width:0}
+  .file-row .up{position:relative;display:inline-flex;overflow:hidden}.file-row .up button{white-space:nowrap}
+  .file-row .up input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+  .delivery-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .delivery-stat{min-width:0;padding:14px;border:1px solid #53647D;border-radius:11px;background:#0D1523}
+  .delivery-stat span{display:block;color:#CBD5E1;font-size:12px;line-height:1.35}
+  .delivery-stat strong{display:block;margin-top:7px;color:#F4D7E3;font-size:clamp(20px,3vw,25px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  #deliveryUpdated{margin:12px 0 0}#deliveryErrors{margin:9px 0 0;padding-left:20px;color:#FF9AA2}#deliveryErrors:empty{display:none}
+  .table-wrap{width:100%;overflow-x:auto;border:1px solid #3B4A61;border-radius:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:11px 12px;border-bottom:1px solid #3B4A61;text-align:left;white-space:nowrap}
+  th{background:#0D1523;color:#F0B7CD;font-weight:700}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#211A27}
+  td button{min-height:32px;padding:5px 9px;font-size:12px}
+  .bar{position:fixed;z-index:10;right:0;bottom:0;left:0;display:flex;justify-content:center;align-items:center;gap:14px;padding:12px 18px max(12px,env(safe-area-inset-bottom));border-top:1px solid #53647D;background:#111827;box-shadow:0 -8px 24px rgba(0,0,0,.3)}
+  #status,#testStatus{color:#F4D7E3;font-size:13px}
+  @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:520px){main{padding:19px 11px 110px}.admin-header{display:block}.admin-tag{display:inline-flex;margin-top:12px}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.bar{justify-content:space-between;gap:10px;padding-right:12px;padding-left:12px}#status{flex:1}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 <main>
-  <h1>Донат-алерты</h1>
+  <header class="admin-header"><div><p class="eyebrow">Панель управления</p><h1>Донат-алерты</h1><p class="admin-intro">Настройки приёма донатов, оформления и доставки уведомлений.</p></div><span class="admin-tag">Управление стримом</span></header>
+  <nav class="admin-nav" aria-label="Разделы панели">
+    <a href="#payment-settings">Приём донатов</a><a href="#alert-settings">Вид алерта</a><a href="#tts-settings">Озвучка</a><a href="#tiers-settings">Уровни</a><a href="#test-settings">Проверка</a><a href="#delivery-settings">Доставка</a><a href="#history-settings">История</a>
+  </nav>
 
   <section>
     <h2>Ссылка для OBS</h2>
@@ -246,7 +71,7 @@
     <code id="overlayLink">…</code>
   </section>
 
-  <section>
+  <section id="payment-settings">
     <h2>Приём донатов</h2>
     <div class="grid">
       <label>Минимальная сумма <input id="min_amount" type="number" min="1" step="any"></label>
@@ -257,7 +82,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="alert-settings">
     <h2>Вид алерта</h2>
     <div class="grid">
       <label class="wide">Заголовок (подставляются {name} и {amount}) <input id="title_template"></label>
@@ -267,7 +92,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="tts-settings">
     <h2>Озвучка (TTS)</h2>
     <div class="grid">
       <label class="check wide"><input id="tts_enabled" type="checkbox"> Озвучивать донаты</label>
@@ -287,14 +112,14 @@
     </div>
   </section>
 
-  <section>
+  <section id="tiers-settings">
     <h2>Оформление по суммам</h2>
     <p class="muted flush">Для доната берётся самый высокий уровень, чья сумма «от» не больше суммы доната. Файлы загружаются кнопкой «Загрузить» и лежат в папке <code>media</code>.</p>
     <div id="tiers"></div>
     <button id="addTier" type="button">+ Добавить уровень</button>
   </section>
 
-  <section>
+  <section id="test-settings">
     <h2>Проверка</h2>
     <div class="grid">
       <label>Имя <input id="t_name" value="Тестовый донатер"></label>
@@ -305,7 +130,7 @@
     <p class="muted nomargin">Тест использует сохранённые настройки — сначала нажмите «Сохранить».</p>
   </section>
 
-  <section>
+  <section id="delivery-settings">
     <h2>Доставка алертов</h2>
     <div class="delivery-stats" aria-live="polite">
       <div class="delivery-stat"><span class="muted">Ожидают отправки</span><strong id="deliveryPending">—</strong></div>
@@ -317,13 +142,13 @@
     <ul id="deliveryErrors"></ul>
   </section>
 
-  <section>
+  <section id="history-settings">
     <h2>Последние донаты</h2>
-    <table><thead><tr><th>Время</th><th>Имя</th><th>Сумма</th><th>Статус</th><th></th></tr></thead><tbody id="hist"></tbody></table>
+    <div class="table-wrap"><table><thead><tr><th>Время</th><th>Имя</th><th>Сумма</th><th>Статус</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
   </section>
 </main>
 
-<div class="bar"><button class="primary" id="save">Сохранить</button><span id="status"></span></div>
+<div class="bar"><button class="primary" id="save">Сохранить</button><span id="status" role="status" aria-live="polite"></span></div>
 
 <script>
 const $ = id => document.getElementById(id);
