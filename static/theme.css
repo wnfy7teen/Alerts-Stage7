@@ -1,18 +1,18 @@
 :root {
   color-scheme: dark;
-  --brand-blue: #8EA2FF;
+  --brand-blue: #E9A8C3;
   --brand-white: #FFFFFF;
-  --brand-pink: #B9A7FF;
+  --brand-pink: #E9A8C3;
   --bg: #080B12;
   --panel: #111827;
   --panel-soft: #1B2940;
   --line: #3B4A61;
   --text: #F8FAFC;
   --muted: #CBD5E1;
-  --accent: #A5B4FC;
+  --accent: #E9A8C3;
   --accent-ink: #080B12;
-  --action: #455BB5;
-  --action-hover: #5268C8;
+  --action: #B35479;
+  --action-hover: #A94F75;
   --error: #FF8D96;
   --ok: #68D6A5;
   --warning: #F5C66B;
