@@ -163,6 +163,7 @@ jobs:
           assert parser.title.strip() and len(parser.title) <= 60, "homepage title is missing or too long"
           assert parser.meta.get("description") and len(parser.meta["description"]) <= 160, "meta description is missing or too long"
           assert parser.meta.get("robots", "").startswith("index"), "homepage must be indexable"
+          assert parser.meta.get("msvalidate.01") == "1656712732A8B6F806D5737CCDB19855", "Bing Webmaster verification meta tag is missing or incorrect"
           assert parser.canonical == base + "/", "homepage canonical URL must use the apex HTTPS domain"
           graph = json.loads("".join(parser.jsonld))
           kinds = {item.get("@type") for item in graph.get("@graph", [])}

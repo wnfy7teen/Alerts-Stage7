@@ -203,6 +203,7 @@ def head_html(meta: dict, noindex: bool, ld: str) -> str:
         f"<title>{t}</title>",
         f'<meta name="description" content="{d}">',
         f'<meta name="robots" content="{robots}">',
+        '<meta name="msvalidate.01" content="1656712732A8B6F806D5737CCDB19855">',
         f'<link rel="canonical" href="{u}">',
         '<meta name="theme-color" content="#0593C6">',
         '<link rel="icon" href="/favicon.svg" type="image/svg+xml">',
