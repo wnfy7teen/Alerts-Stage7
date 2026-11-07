@@ -16,9 +16,25 @@
   .page { width: 100%; max-width: 460px; }
   main { display: grid; gap: 16px; }
   .faq { padding: 8px 2px 0; }
-  .faq h2 { font-family: "Unbounded", "Onest", sans-serif; font-size: 18px; margin: 12px 0 4px; }
-  .faq h3 { font-size: 15px; margin: 18px 0 4px; }
-  .faq p { color: var(--muted); margin: 0; font-size: 15px; }
+  .faq h2 { font-family: "Unbounded", "Onest", sans-serif; font-size: 18px; margin: 12px 0 14px; }
+  .faq-list { border-top: 1px solid var(--line); }
+  .faq-item { border-bottom: 1px solid var(--line); }
+  .faq-item summary { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    min-height: 58px; padding: 12px 2px; color: var(--text); font-size: 14px; font-weight: 600;
+    line-height: 1.45; cursor: pointer; list-style: none; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .faq-chevron { width: 8px; height: 8px; flex: 0 0 8px; margin: 0 4px 4px 0;
+    border-right: 1.7px solid var(--action); border-bottom: 1.7px solid var(--action);
+    transform: rotate(45deg); transition: transform .22s ease; }
+  .faq-item[open] .faq-chevron { transform: rotate(225deg); margin-bottom: -4px; }
+  .faq-answer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .24s ease; }
+  .faq-answer > div { overflow: hidden; }
+  .faq-answer p { color: var(--muted); margin: 0; padding: 0 24px 16px 2px; font-size: 14px; line-height: 1.65; }
+  .faq-item[open] .faq-answer { grid-template-rows: 1fr; }
+  @media (prefers-reduced-motion: reduce) {
+    .faq-chevron, .faq-answer { transition: none; }
+  }
   footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
   .links { list-style: none; display: flex; gap: 16px; padding: 0; margin: 0 0 8px; }
   .links a { color: var(--action); display: inline-block; padding: 10px 0; }
@@ -125,8 +141,10 @@
     </section>
 
     <section class="faq" aria-labelledby="faq-title">
-      <h2 id="faq-title">Вопросы и ответы</h2>
-      {{FAQ}}
+      <h2 id="faq-title">Частые вопросы</h2>
+      <div class="faq-list">
+        {{FAQ}}
+      </div>
     </section>
   </main>
   <footer>
