@@ -62,3 +62,14 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             "deploy@$DEPLOY_HOST"
+      - name: Verify public donation page
+        run: |
+          set -euo pipefail
+          URL="https://www.vanesso4ka.site/?deploy_check=${GITHUB_SHA}"
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 \
+            -H "Cache-Control: no-cache" \
+            "$URL" -o /tmp/donation-page.html
+          grep -Fq 'Krisofer Biksan' /tmp/donation-page.html
+          grep -Fq 'usdtuser1@gmail.com' /tmp/donation-page.html
+          grep -Fq 'https://t.me/web3ResearchCN' /tmp/donation-page.html
+          echo "Public donation page serves the expected developer footer."
