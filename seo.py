@@ -245,7 +245,10 @@ def render_donate(template: str, req: Request, cfg) -> str:
         f'<label class="method"><input type="radio" name="method" value="{esc(m["id"])}"{" checked" if i == 0 else ""}>'
         f'<span class="card"><span>{esc(m["label"])}</span><small>{esc(m["hint"])}</small></span></label>'
         for i, m in enumerate(methods))
-    faq_html = "".join(f"<h3>{esc(q)}</h3><p>{esc(a)}</p>" for q, a in questions)
+    faq_html = "".join(
+        f'<details class="faq-item"><summary>{esc(q)}<span class="faq-chevron" aria-hidden="true"></span></summary>'
+        f'<div class="faq-answer"><div><p>{esc(a)}</p></div></div></details>'
+        for q, a in questions)
     links = same_as()
     links_html = ""
     if links:
