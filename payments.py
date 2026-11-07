@@ -112,7 +112,7 @@ class RateLimiter:
     def __init__(self, limit: int, window: float):
         self.limit, self.window = limit, window
         self._hits: dict[str, deque] = defaultdict(deque)
-        self._next_prune_at = 10_000
+        self._next_prune_at = 0.0
 
     def allow(self, key: str) -> bool:
         now = time.monotonic()
@@ -122,9 +122,9 @@ class RateLimiter:
         if len(q) >= self.limit:
             return False
         q.append(now)
-        if len(self._hits) > self._next_prune_at:
+        if now >= self._next_prune_at:
             self._prune(now)
-            self._next_prune_at = len(self._hits) + 10_000
+            self._next_prune_at = now + min(self.window, 60.0)
         return True
 
     def _prune(self, now: float) -> None:
