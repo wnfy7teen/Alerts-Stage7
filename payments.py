@@ -237,6 +237,37 @@ def recent(limit: int = 30) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", provider: str = "", query: str = "") -> dict:
+    """Возвращает страницу финансового журнала и общее число совпадений."""
+    allowed_statuses = {"created", "pending", "paid", "canceled", "failed", "expired", "refunded"}
+    allowed_providers = {"yookassa", "nowpayments", "cryptopay"}
+    filters: list[str] = []
+    params: list[object] = []
+    if status in allowed_statuses:
+        filters.append("status=?")
+        params.append(status)
+    if provider in allowed_providers:
+        filters.append("provider=?")
+        params.append(provider)
+    term = query.strip()[:100]
+    if term:
+        pattern = f"%{term}%"
+        filters.append("(id LIKE ? OR provider_txn_id LIKE ? OR donor_name LIKE ? OR message LIKE ?)")
+        params.extend((pattern, pattern, pattern, pattern))
+    where = " WHERE " + " AND ".join(filters) if filters else ""
+    page_size = min(100, max(1, int(limit)))
+    page_offset = max(0, int(offset))
+    with closing(db()) as c:
+        total = c.execute("SELECT COUNT(*) FROM donations" + where, params).fetchone()[0]
+        rows = c.execute(
+            "SELECT id, amount, currency, status, donor_name, message, provider, provider_txn_id, "
+            "created_at, paid_at FROM donations" + where +
+            " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+            (*params, page_size, page_offset),
+        ).fetchall()
+    return {"total": int(total), "limit": page_size, "offset": page_offset, "items": [dict(r) for r in rows]}
+
+
 def alert_delivery_stats() -> dict:
     """Сводка очереди без имён, сообщений и идентификаторов донатов."""
     now = time.time()
