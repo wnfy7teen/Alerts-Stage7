@@ -87,3 +87,85 @@ jobs:
             done
             echo "${HOST}: expected developer footer verified."
           done
+
+      - name: Verify public SEO endpoints and metadata
+        run: |
+          set -euo pipefail
+          BASE="https://vanesso4ka.site"
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "$BASE/robots.txt" -o /tmp/robots.txt
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "$BASE/sitemap.xml" -o /tmp/sitemap.xml
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "$BASE/llms.txt" -o /tmp/llms.txt
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "$BASE/" -o /tmp/homepage.html
+          python - <<'PY'
+          import json
+          import re
+          import xml.etree.ElementTree as ET
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          base = "https://vanesso4ka.site"
+          robots = Path("/tmp/robots.txt").read_text(encoding="utf-8")
+          sitemap_text = Path("/tmp/sitemap.xml").read_text(encoding="utf-8")
+          llms = Path("/tmp/llms.txt").read_text(encoding="utf-8")
+          homepage = Path("/tmp/homepage.html").read_text(encoding="utf-8")
+
+          assert f"Sitemap: {base}/sitemap.xml" in robots, "robots.txt must advertise the canonical sitemap"
+          for bot in ("GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot"):
+              assert f"User-agent: {bot}" in robots, f"robots.txt missing crawler group: {bot}"
+
+          root = ET.fromstring(sitemap_text)
+          ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+          assert root.tag == ns + "urlset", "sitemap root must be the standard urlset element"
+          assert all(child.tag == ns + "url" for child in root), "sitemap must contain only url entries"
+          urls = root.findall(ns + "url")
+          assert len(urls) == 1, f"expected one public URL, got {len(urls)}"
+          assert urls[0].findtext(ns + "loc") == base + "/", "sitemap URL must use the canonical homepage"
+          assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", urls[0].findtext(ns + "lastmod") or ""), "sitemap lastmod must be YYYY-MM-DD"
+          assert "<script" not in sitemap_text.lower(), "unexpected script element in XML sitemap"
+
+          assert llms.startswith("# "), "llms.txt must start with a Markdown H1"
+          assert "## Страницы" in llms and f"({base}/)" in llms, "llms.txt must describe the canonical public page"
+
+          class SEOParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.title = ""
+                  self.in_title = False
+                  self.meta = {}
+                  self.canonical = None
+                  self.jsonld = []
+                  self.in_jsonld = False
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if tag == "title":
+                      self.in_title = True
+                  if tag == "meta":
+                      key = attrs.get("name") or attrs.get("property")
+                      if key:
+                          self.meta[key] = attrs.get("content", "")
+                  if tag == "link" and attrs.get("rel") == "canonical":
+                      self.canonical = attrs.get("href")
+                  if tag == "script" and attrs.get("type") == "application/ld+json":
+                      self.in_jsonld = True
+              def handle_endtag(self, tag):
+                  if tag == "title":
+                      self.in_title = False
+                  if tag == "script":
+                      self.in_jsonld = False
+              def handle_data(self, data):
+                  if self.in_title:
+                      self.title += data
+                  if self.in_jsonld:
+                      self.jsonld.append(data)
+
+          parser = SEOParser()
+          parser.feed(homepage)
+          assert parser.title.strip() and len(parser.title) <= 60, "homepage title is missing or too long"
+          assert parser.meta.get("description") and len(parser.meta["description"]) <= 160, "meta description is missing or too long"
+          assert parser.meta.get("robots", "").startswith("index"), "homepage must be indexable"
+          assert parser.canonical == base + "/", "homepage canonical URL must use the apex HTTPS domain"
+          graph = json.loads("".join(parser.jsonld))
+          kinds = {item.get("@type") for item in graph.get("@graph", [])}
+          assert {"WebSite", "Person", "WebPage"} <= kinds, "JSON-LD graph is missing core entity types"
+          print("SEO smoke checks passed: robots, sitemap XML, llms.txt, canonical metadata and JSON-LD.")
+          PY
