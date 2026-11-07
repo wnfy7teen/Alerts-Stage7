@@ -386,7 +386,7 @@ def test_admin_transaction_csv_neutralizes_spreadsheet_formulas(client, fake):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
-    assert response.text.startswith("\\ufeff")
+    assert response.content.startswith(b"\\xef\\xbb\\xbf")
     assert "'=HYPERLINK" in response.text
 
 
