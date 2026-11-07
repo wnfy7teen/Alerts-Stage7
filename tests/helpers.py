@@ -35,7 +35,8 @@ class Fake:
                                              "pay_currency": "usdttrc20"})
         if url == "https://api.nowpayments.io/v1/payment/777":
             return httpx.Response(200, json={"payment_id": 777, "payment_status": self.np_status,
-                                             "order_id": self.np_created[0]["order_id"], "price_amount": self.np_price,\n                                             "price_currency": self.np_price_currency})
+                                             "order_id": self.np_created[0]["order_id"], "price_amount": self.np_price,
+                                             "price_currency": self.np_price_currency})
         if url == "https://testnet-pay.crypt.bot/api/createInvoice":
             return httpx.Response(200, json={"ok": True, "result": {"invoice_id": 555,
                                              "bot_invoice_url": "https://t.me/CryptoTestnetBot?start=IVx"}})
