@@ -64,6 +64,19 @@
   .analytics-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
   .analytics-panel{min-width:0}.analytics-panel h3{margin:0 0 9px;color:#F0B7CD;font-size:14px}
   .analytics-panel .table-wrap{margin:0}
+  .monitor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .monitor-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .monitor-state{display:inline-flex;align-items:center;min-height:30px;padding:5px 10px;border:1px solid #53647D;border-radius:999px;background:#172033;color:#E2E8F0;font-size:12px;font-weight:700}
+  .monitor-state.ok{border-color:#326A58;background:#10251F;color:#9DE2C2}
+  .monitor-state.warning{border-color:#80633D;background:#2A2115;color:#F2D49C}
+  .monitor-state.critical{border-color:#87434C;background:#2B171D;color:#FFB4BC}
+  .monitor-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .monitor-card{min-width:0;padding:13px;border:1px solid #53647D;border-radius:11px;background:#0D1523}
+  .monitor-card span{display:block;color:#CBD5E1;font-size:12px}
+  .monitor-card strong{display:block;margin-top:6px;color:#F4D7E3;font-size:17px;overflow-wrap:anywhere}
+  .monitor-issues{margin:12px 0 0;padding-left:20px;color:#F2D49C}
+  .monitor-section-title{margin:18px 0 9px;color:#F0B7CD;font-size:14px}
+  .monitor-note{margin:12px 0 0;color:#AAB7C9;font-size:12px}
   .history-tools{display:grid;grid-template-columns:2fr 1fr 1fr auto;align-items:end;gap:10px;margin-bottom:13px}
   .history-tools label{min-width:0}.history-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
   .history-pager{display:flex;align-items:center;gap:8px}.history-pager button{min-width:76px}
@@ -73,7 +86,7 @@
   td button{min-height:32px;padding:5px 9px;font-size:12px}
   .bar{position:fixed;z-index:10;right:0;bottom:0;left:0;display:flex;justify-content:center;align-items:center;gap:14px;padding:12px 18px max(12px,env(safe-area-inset-bottom));border-top:1px solid #53647D;background:#111827;box-shadow:0 -8px 24px rgba(0,0,0,.3)}
   #status,#testStatus{color:#F4D7E3;font-size:13px}
-  @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-columns{grid-template-columns:minmax(0,1fr)}.history-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-columns{grid-template-columns:minmax(0,1fr)}.monitor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.history-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:520px){main{padding:19px 11px 110px}.admin-header{display:block}.admin-tag{display:inline-flex;margin-top:12px}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.history-tools{grid-template-columns:minmax(0,1fr)}.history-footer{align-items:flex-start;flex-direction:column}.bar{justify-content:space-between;gap:10px;padding-right:12px;padding-left:12px}#status{flex:1}}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 </style>
@@ -82,7 +95,7 @@
 <main>
   <header class="admin-header"><div><p class="eyebrow">Панель управления</p><h1>Донат-алерты</h1><p class="admin-intro">Настройки приёма донатов, оформления и доставки уведомлений.</p></div><span class="admin-tag">Управление донатами</span></header>
   <nav class="admin-nav" aria-label="Разделы панели">
-    <a href="#payment-settings">Приём донатов</a><a href="#alert-settings">Вид алерта</a><a href="#tts-settings">Озвучка</a><a href="#tiers-settings">Уровни</a><a href="#test-settings">Проверка</a><a href="#delivery-settings">Доставка</a><a href="#analytics-settings">Аналитика</a><a href="#history-settings">История</a>
+    <a href="#payment-settings">Приём донатов</a><a href="#alert-settings">Вид алерта</a><a href="#tts-settings">Озвучка</a><a href="#tiers-settings">Уровни</a><a href="#test-settings">Проверка</a><a href="#delivery-settings">Доставка</a><a href="#analytics-settings">Аналитика</a><a href="#monitoring-settings">Мониторинг</a><a href="#history-settings">История</a>
   </nav>
 
   <section>
@@ -187,6 +200,28 @@
       <div class="analytics-panel"><h3>По платёжным системам</h3><div class="table-wrap"><table><thead><tr><th>Провайдер</th><th>Донаты</th><th>Чистый вклад</th></tr></thead><tbody id="anaProviders"></tbody></table></div></div>
     </div>
     <p class="muted nomargin">Возвраты учитываются по дате подтверждения. Если провайдер не передаёт сумму полного возврата, для расчёта используется исходная сумма доната. График за период «Всё время» показывает последние 365 дней.</p>
+  </section>
+  <section id="monitoring-settings">
+    <h2>Состояние системы</h2>
+    <div class="monitor-toolbar">
+      <span id="monitorOverall" class="monitor-state" role="status" aria-live="polite">Проверка…</span>
+      <div class="monitor-actions"><span id="monitorUpdated" class="muted">—</span><button type="button" id="monitorRefresh">Обновить</button></div>
+    </div>
+    <div class="monitor-grid">
+      <div class="monitor-card"><span>База данных</span><strong id="monDatabase">—</strong></div>
+      <div class="monitor-card"><span>Свободное место</span><strong id="monDisk">—</strong></div>
+      <div class="monitor-card"><span>Последний бэкап</span><strong id="monBackup">—</strong></div>
+      <div class="monitor-card"><span>Платёжные провайдеры</span><strong id="monProviders">—</strong></div>
+      <div class="monitor-card"><span>Зависшие платежи</span><strong id="monPayments">—</strong></div>
+      <div class="monitor-card"><span>Очередь алертов</span><strong id="monAlerts">—</strong></div>
+      <div class="monitor-card"><span>OBS</span><strong id="monObs">—</strong></div>
+      <div class="monitor-card"><span>Озвучка TTS</span><strong id="monTts">—</strong></div>
+    </div>
+    <ul id="monitorIssues" class="monitor-issues"></ul>
+    <p class="monitor-note" id="monitorBackupDetails">Данные о резервных копиях появятся после запуска обновлённого backup-скрипта.</p>
+    <h3 class="monitor-section-title">История production-деплоев</h3>
+    <div class="table-wrap"><table><thead><tr><th>Изменение</th><th>Версия</th><th>Статус</th><th>Время</th><th></th></tr></thead><tbody id="deployHistory"><tr><td colspan="5" class="muted">Загрузка…</td></tr></tbody></table></div>
+    <p class="monitor-note">Nginx и systemd контролируются на уровне VPS и не считаются исправными только потому, что отвечает приложение. Их статус требует отдельной host-level проверки.</p>
   </section>
   <section id="history-settings">
     <h2>Финансовый журнал</h2>
@@ -346,6 +381,69 @@ let txPage = 1;
 const TX_LIMIT = 50;
 const TX_STATUS = { created: "создаётся", paid: "оплачен", pending: "ожидает оплаты", partially_refunded: "частично возвращён", refunded: "возвращён", canceled: "отменён", failed: "ошибка", expired: "истёк" };
 const TX_PROVIDER = { yookassa: "ЮKassa", nowpayments: "NOWPayments", cryptopay: "Crypto Pay" };
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return bytes + " Б";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " КБ";
+  if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + " МБ";
+  return (bytes / 1024 / 1024 / 1024).toFixed(2) + " ГБ";
+}
+function monitorDate(value) {
+  return value ? new Date(Number(value) * 1000).toLocaleString("ru-RU") : "Нет данных";
+}
+async function loadMonitoring() {
+  const health = await api("/api/admin/system-health");
+  const statusNames = { ok: "Система работает", warning: "Есть предупреждения", critical: "Критическая проблема" };
+  $("monitorOverall").textContent = statusNames[health.status] || "Статус неизвестен";
+  $("monitorOverall").className = "monitor-state " + (["ok", "warning", "critical"].includes(health.status) ? health.status : "");
+  $("monDatabase").textContent = health.database.status === "ok"
+    ? "OK · " + formatBytes(health.database.size_bytes + health.database.wal_size_bytes)
+    : "Ошибка проверки";
+  $("monDisk").textContent = health.disk.free_percent === null
+    ? "Нет данных" : health.disk.free_percent + "% · " + formatBytes(health.disk.free_bytes);
+  $("monBackup").textContent = health.backup.last_success_at
+    ? monitorDate(health.backup.last_success_at) : "Не найден";
+  $("monProviders").textContent = health.payments.providers.length
+    ? health.payments.providers.map(x => ({ yookassa: "ЮKassa", nowpayments: "NOWPayments", cryptopay: "Crypto Pay" }[x] || x)).join(", ")
+    : "Не настроены";
+  $("monPayments").textContent = health.payments.stale_pending + " старше 10 мин · всего " + health.payments.pending;
+  $("monAlerts").textContent = health.alerts.pending + " ожидают · " + health.alerts.delivered + " доставлено";
+  $("monObs").textContent = health.obs.status === "connected" ? "Подключён · " + health.obs.connections : "Оффлайн";
+  $("monTts").textContent = health.tts.enabled ? "Включена" : "Выключена";
+  const issueNames = {
+    database_error: "База данных не прошла проверку целостности",
+    disk_critical: "Критически мало свободного места на диске",
+    low_disk_space: "Мало свободного места на диске",
+    backup_unknown: "Нет данных о резервных копиях",
+    backup_stale: "Резервная копия старше 48 часов",
+    backup_failed: "Последняя резервная копия завершилась ошибкой",
+    backup_error: "Не удалось прочитать статус резервной копии",
+    stale_payments: "Есть платежи, ожидающие подтверждения более 10 минут",
+    stale_alert_queue: "Очередь OBS-уведомлений давно не уменьшается",
+    no_payment_provider: "Не настроен ни один платёжный провайдер",
+  };
+  $("monitorIssues").innerHTML = health.issues.map(x => `<li>${issueNames[x] || esc(x)}</li>`).join("");
+  $("monitorBackupDetails").textContent = health.backup.last_success_at
+    ? `Файл: ${health.backup.file || "—"} · Размер: ${formatBytes(health.backup.size_bytes)} · Целостность: ${health.backup.integrity || "—"} · Конфиг: ${health.backup.config_included ? "включён" : "нет"}`
+    : "Данные о резервных копиях появятся после запуска обновлённого backup-скрипта.";
+  $("monitorUpdated").textContent = "Проверено: " + new Date().toLocaleTimeString("ru-RU");
+
+  try {
+    const deployments = await api("/api/admin/deployments");
+    $("deployHistory").innerHTML = deployments.items.map(item => {
+      const label = item.status === "completed"
+        ? (item.conclusion === "success" ? "Успешно" : item.conclusion || "Завершён")
+        : item.status === "in_progress" ? "Выполняется" : "В очереди";
+      return `<tr><td>${esc(item.title)}</td><td><code>${esc(item.sha)}</code></td>
+        <td>${esc(label)}</td><td>${item.updated_at ? new Date(item.updated_at).toLocaleString("ru-RU") : "—"}</td>
+        <td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Открыть</a></td></tr>`;
+    }).join("") || `<tr><td colspan="5" class="muted">${deployments.available ? "Деплоев пока нет" : "История GitHub временно недоступна"}</td></tr>`;
+  } catch (err) {
+    $("deployHistory").innerHTML = `<tr><td colspan="5" class="muted">История GitHub временно недоступна</td></tr>`;
+  }
+}
+$("monitorRefresh").addEventListener("click", loadMonitoring);
+
 function formatMoney(value, currency) {
   return Number(value || 0).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currency;
 }
@@ -472,9 +570,11 @@ $("hist").addEventListener("click", async e => {
   loadHistory();
   loadDelivery();
   loadAnalytics();
+  loadMonitoring();
   setInterval(loadHistory, 15000);
   setInterval(loadDelivery, 15000);
   setInterval(loadAnalytics, 60000);
+  setInterval(loadMonitoring, 60000);
 })();
 </script>
 </body>

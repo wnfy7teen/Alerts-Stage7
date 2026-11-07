@@ -1,6 +1,9 @@
 import json
 import logging
 import re
+import sqlite3
+import stat
+import sys
 from contextlib import ExitStack, closing
 
 import httpx
@@ -11,6 +14,7 @@ from starlette.websockets import WebSocketDisconnect
 import payments as pay
 import security as sec
 import server
+import scripts.backup as backup
 from helpers import KEY, donate, route_through
 
 AUTH = ("admin", "pw-test-1234567")
@@ -88,6 +92,83 @@ def test_admin_delivery_stats_is_private_and_reports_queue(client):
     assert stats["errors"] == [{"code": "no_overlay_clients", "count": 1}]
 
 
+
+
+def test_admin_system_health_reports_database_disk_and_backup(client, monkeypatch, tmp_path):
+    now = pay.time.time()
+    status_path = tmp_path / "backup-status.json"
+    status_path.write_text(json.dumps({
+        "status": "success", "last_attempt_at": now - 3600, "last_success_at": now - 3600,
+        "backup_file": "donations-test.db", "size_bytes": 12345, "db_integrity": "ok",
+        "config_included": True,
+    }), encoding="utf-8")
+    monkeypatch.setattr(server, "BACKUP_STATUS_PATH", status_path)
+
+    response = client.get("/api/admin/system-health", auth=AUTH)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["database"]["status"] == "ok"
+    assert data["disk"]["free_percent"] > 0
+    assert data["backup"]["status"] == "success"
+    assert data["backup"]["file"] == "donations-test.db"
+    assert client.get("/api/admin/system-health").status_code == 401
+
+
+def test_admin_system_health_marks_old_backup_stale(client, monkeypatch, tmp_path):
+    now = pay.time.time()
+    status_path = tmp_path / "backup-status.json"
+    status_path.write_text(json.dumps({
+        "status": "success", "last_attempt_at": now - 50 * 3600,
+        "last_success_at": now - 50 * 3600, "backup_file": "old.db",
+        "size_bytes": 100, "db_integrity": "ok",
+    }), encoding="utf-8")
+    monkeypatch.setattr(server, "BACKUP_STATUS_PATH", status_path)
+
+    response = client.get("/api/admin/system-health", auth=AUTH)
+    assert response.json()["backup"]["status"] == "stale"
+    assert "backup_stale" in response.json()["issues"]
+
+
+def test_admin_deployment_history_uses_cached_github_data(client, monkeypatch):
+    now = pay.time.time()
+    payload = {
+        "available": True, "stale": False, "fetched_at": now,
+        "items": [{"title": "Deploy #47", "sha": "abc1234", "status": "completed",
+                   "conclusion": "success", "updated_at": "2026-11-07T09:00:00Z",
+                   "url": "https://github.com/wnfy7teen/Alerts-Stage7/actions/runs/47"}],
+    }
+    monkeypatch.setattr(server, "_DEPLOY_HISTORY_CACHE", {"fetched_at": now, "payload": payload})
+    response = client.get("/api/admin/deployments", auth=AUTH)
+    assert response.status_code == 200
+    assert response.json()["items"][0]["sha"] == "abc1234"
+    assert client.get("/api/admin/deployments").status_code == 401
+
+
+def test_backup_script_writes_private_verified_copy_and_status(tmp_path, monkeypatch):
+    db_path = tmp_path / "donations.db"
+    with sqlite3.connect(db_path) as db:
+        db.execute("CREATE TABLE sample(value TEXT)")
+        db.execute("INSERT INTO sample VALUES('private')")
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"fiat":"RUB"}', encoding="utf-8")
+    output = tmp_path / "backups"
+    status_path = tmp_path / "backup-status.json"
+
+    monkeypatch.setenv("DB_PATH", str(db_path))
+    monkeypatch.setenv("CONFIG_PATH", str(config_path))
+    monkeypatch.setattr(backup, "STATUS_PATH", status_path)
+    monkeypatch.setattr(backup, "KEEP", 1)
+    monkeypatch.setattr(sys, "argv", ["backup.py", str(output)])
+
+    backup.main()
+
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    assert status["status"] == "success"
+    assert status["db_integrity"] == "ok"
+    assert len(status["sha256"]) == 64
+    assert stat.S_IMODE(output.stat().st_mode) == 0o700
+    assert stat.S_IMODE((output / status["backup_file"]).stat().st_mode) == 0o600
+    assert status["config_included"] is True
 
 
 def test_admin_bruteforce_lockout(client, monkeypatch):

@@ -10,6 +10,7 @@ services:
       DB_PATH: /data/donations.db
       CONFIG_PATH: /data/config.json
       MEDIA_DIR: /data/media
+      BACKUP_STATUS_PATH: /data/backup-status.json
       TRUST_PROXY_HEADERS: "1"
       FORCE_HTTPS: "1"
     volumes:
@@ -52,6 +53,7 @@ services:
     environment:
       DB_PATH: /data/donations.db
       CONFIG_PATH: /data/config.json
+      BACKUP_STATUS_PATH: /data/backup-status.json
     volumes:
       - app-data:/data      # нужен доступ на запись: SQLite создаёт служебные файлы рядом с базой
       - backups:/backups

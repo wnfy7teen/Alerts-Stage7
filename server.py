@@ -12,12 +12,14 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 from pathlib import Path
 
 import edge_tts
+import httpx
 import uvicorn
 from dotenv import load_dotenv
 from typing import Literal
@@ -42,6 +44,8 @@ MEDIA = Path(os.getenv("MEDIA_DIR") or BASE / "media")
 TTS_DIR = MEDIA / "tts"
 STATIC = BASE / "static"
 CFG_PATH = Path(os.getenv("CONFIG_PATH") or BASE / "config.json")
+BACKUP_STATUS_PATH = Path(os.getenv("BACKUP_STATUS_PATH") or BASE / "backup-status.json")
+_DEPLOY_HISTORY_CACHE: dict = {"fetched_at": 0.0, "payload": None}
 MEDIA.mkdir(exist_ok=True)
 TTS_DIR.mkdir(exist_ok=True)
 
@@ -691,6 +695,147 @@ def history():
 @app.get("/api/admin/analytics", dependencies=ADMIN)
 def admin_analytics(days: int = 30, currency: str = ""):
     return pay.analytics(days=days, currency=currency or load_cfg().fiat)
+
+
+def _backup_health(now: float) -> dict:
+    try:
+        data = json.loads(BACKUP_STATUS_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"status": "unknown", "last_success_at": None, "age_seconds": None, "file": None}
+    except (OSError, ValueError, TypeError):
+        return {"status": "error", "last_success_at": None, "age_seconds": None, "file": None}
+    last_success = data.get("last_success_at")
+    age = max(0, int(now - float(last_success))) if last_success is not None else None
+    status = data.get("status", "unknown")
+    if status == "success" and age is not None and age > 48 * 3600:
+        status = "stale"
+    return {
+        "status": status,
+        "last_success_at": last_success,
+        "last_attempt_at": data.get("last_attempt_at"),
+        "age_seconds": age,
+        "file": data.get("backup_file"),
+        "size_bytes": data.get("size_bytes"),
+        "integrity": data.get("db_integrity"),
+        "config_included": data.get("config_included"),
+        "error": data.get("error"),
+    }
+
+
+@app.get("/api/admin/system-health", dependencies=ADMIN)
+def system_health():
+    now = time.time()
+    cfg = load_cfg()
+    try:
+        with closing(pay.db()) as db:
+            integrity = db.execute("PRAGMA quick_check").fetchone()[0]
+            pending = db.execute(
+                "SELECT COUNT(*) AS total, "
+                "SUM(CASE WHEN created_at<? THEN 1 ELSE 0 END) AS stale, "
+                "MIN(created_at) AS oldest FROM donations WHERE status='pending'",
+                (now - 600,),
+            ).fetchone()
+        db_size = pay.DB_PATH.stat().st_size if pay.DB_PATH.exists() else 0
+        wal_path = Path(str(pay.DB_PATH) + "-wal")
+        wal_size = wal_path.stat().st_size if wal_path.exists() else 0
+        database = {"status": "ok" if integrity == "ok" else "error",
+                    "integrity": integrity, "size_bytes": db_size, "wal_size_bytes": wal_size}
+    except Exception as exc:
+        log.warning("Проверка базы данных не удалась (%s)", type(exc).__name__)
+        pending = {"total": 0, "stale": 0, "oldest": None}
+        database = {"status": "error", "integrity": "unavailable", "size_bytes": 0, "wal_size_bytes": 0}
+
+    try:
+        usage = shutil.disk_usage(pay.DB_PATH.parent)
+        free_percent = round(usage.free / usage.total * 100, 1) if usage.total else 0
+        disk_status = "critical" if free_percent < 5 else "warning" if free_percent < 15 else "ok"
+        disk = {"status": disk_status, "free_bytes": usage.free, "total_bytes": usage.total,
+                "free_percent": free_percent}
+    except OSError:
+        disk = {"status": "unknown", "free_bytes": None, "total_bytes": None, "free_percent": None}
+
+    outbox = pay.alert_delivery_stats()
+    backup = _backup_health(now)
+    pending_total = int(pending["total"] or 0)
+    stale_pending = int(pending["stale"] or 0)
+    oldest_pending = pending["oldest"]
+    issues = []
+    if database["status"] != "ok":
+        issues.append("database_error")
+    if disk["status"] == "critical":
+        issues.append("disk_critical")
+    elif disk["status"] == "warning":
+        issues.append("low_disk_space")
+    if backup["status"] != "success":
+        issues.append("backup_" + str(backup["status"]))
+    if stale_pending:
+        issues.append("stale_payments")
+    if outbox["pending"] and outbox["oldest_pending_seconds"] and outbox["oldest_pending_seconds"] > 300:
+        issues.append("stale_alert_queue")
+    if not pay.enabled_methods():
+        issues.append("no_payment_provider")
+    overall = "critical" if database["status"] != "ok" or disk["status"] == "critical" else "warning" if issues else "ok"
+
+    return {
+        "status": overall,
+        "generated_at": now,
+        "database": database,
+        "disk": disk,
+        "backup": backup,
+        "payments": {
+            "providers": [m["id"] for m in pay.enabled_methods()],
+            "pending": pending_total,
+            "stale_pending": stale_pending,
+            "oldest_pending_at": oldest_pending,
+            "oldest_pending_seconds": max(0, int(now - oldest_pending)) if oldest_pending is not None else None,
+        },
+        "alerts": outbox,
+        "obs": {"status": "connected" if clients else "offline", "connections": len(clients)},
+        "tts": {"enabled": bool(cfg.tts_enabled)},
+        "issues": issues,
+    }
+
+
+@app.get("/api/admin/deployments", dependencies=ADMIN)
+async def deployment_history():
+    now = time.time()
+    cached = _DEPLOY_HISTORY_CACHE.get("payload")
+    if cached is not None and now - _DEPLOY_HISTORY_CACHE.get("fetched_at", 0) < 300:
+        return cached
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(5.0)) as client:
+            response = await client.get(
+                "https://api.github.com/repos/wnfy7teen/Alerts-Stage7/actions/runs?per_page=30",
+                headers={"Accept": "application/vnd.github+json", "User-Agent": "DonationAlerts-Monitor"},
+            )
+        if response.status_code != 200:
+            raise RuntimeError("github_api_unavailable")
+        runs = response.json().get("workflow_runs", [])
+        items = []
+        for run in runs:
+            if run.get("event") != "push" or run.get("head_branch") != "main":
+                continue
+            run_id = int(run.get("id") or 0)
+            if not run_id:
+                continue
+            items.append({
+                "title": str(run.get("display_title") or "Production update")[:160],
+                "sha": str(run.get("head_sha") or "")[:7],
+                "status": str(run.get("status") or "unknown"),
+                "conclusion": run.get("conclusion"),
+                "updated_at": run.get("updated_at"),
+                "url": f"https://github.com/wnfy7teen/Alerts-Stage7/actions/runs/{run_id}",
+            })
+            if len(items) >= 10:
+                break
+        payload = {"available": True, "stale": False, "items": items, "fetched_at": now}
+        _DEPLOY_HISTORY_CACHE.update({"fetched_at": now, "payload": payload})
+        return payload
+    except Exception as exc:
+        log.warning("История production-деплоев недоступна (%s)", type(exc).__name__)
+        if cached is not None:
+            return {**cached, "stale": True}
+        return {"available": False, "stale": False, "items": [], "fetched_at": now}
 
 
 @app.get("/api/admin/transactions", dependencies=ADMIN)
