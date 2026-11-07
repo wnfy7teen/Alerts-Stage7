@@ -216,6 +216,24 @@ async def synth(text: str, cfg: Config) -> str:
     return f"/media/tts/{name}"
 
 
+def prune_tts_files(max_age_seconds: int = 86400, limit: int = 500) -> int:
+    """Удаляет только старые автоматически созданные MP3, ограничивая одну очистку."""
+    cutoff = time.time() - max(0, max_age_seconds)
+    removed = 0
+    for path in TTS_DIR.glob("*.mp3"):
+        if removed >= max(1, limit):
+            break
+        try:
+            if path.is_file() and path.stat().st_mtime < cutoff:
+                path.unlink()
+                removed += 1
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            log.warning("Не удалось удалить старый TTS-файл %s: %s", path.name, type(exc).__name__)
+    return removed
+
+
 async def make_alert(name: str, message: str, amount: float, fiat: str, alert_id: str | None = None) -> dict:
     cfg = load_cfg()
     tier = pick_tier(cfg, amount)
@@ -264,6 +282,8 @@ async def poller() -> None:
     while True:
         try:
             await pay.poll_once(tick)
+            if tick > 0 and tick % 720 == 0:  # раз в час при интервале 5 секунд
+                prune_tts_files()
         except Exception as e:
             log.warning("Опрос платежей не удался: %s", e)
         tick += 1
@@ -275,9 +295,7 @@ async def lifespan(_: FastAPI):
     pay.init_db()
     pay.set_paid_handler(on_paid)
     load_cfg()
-    for f in TTS_DIR.glob("*.mp3"):  # чистим старую озвучку
-        if time.time() - f.stat().st_mtime > 86400:
-            f.unlink(missing_ok=True)
+    prune_tts_files()  # чистим старую озвучку при запуске
     task = asyncio.create_task(poller())
     yield
     task.cancel()
