@@ -26,6 +26,7 @@ pip install -r requirements.lock
 | `NOWPAYMENTS_PAY_CURRENCY`, `NOWPAYMENTS_SANDBOX` | нет | Монета (`usdttrc20` по умолчанию) и режим песочницы |
 | `CRYPTO_PAY_TOKEN`, `TESTNET` | для Crypto Bot | Токен Crypto Pay и тестовая сеть |
 | `TRUST_PROXY_HEADERS` | за прокси | 1, если сервер стоит за Caddy, nginx или Cloudflare (в Docker включено) |
+| `TRUSTED_PROXY_CIDRS` | `127.0.0.1/32,::1/128` | Подсети, от которых разрешено принимать proxy-заголовки. Для локального nginx менять не нужно; для Docker укажите IP/подсеть reverse proxy |
 | `FORCE_HTTPS` | в проде | 1 — перенаправлять http на https (в Docker включено) |
 | `ADMIN_ALLOWED_CIDRS` | нет | Пускать в админку только с этих адресов (через запятую) |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | нет | Cloudflare Turnstile. Пусто, значит выключено |

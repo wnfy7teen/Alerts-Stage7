@@ -102,6 +102,8 @@ def test_admin_csrf(client):
     assert client.post("/api/admin/test", auth=AUTH, json=body,
                        headers={**H, "Origin": "https://evil.example"}).status_code == 403               # чужой Origin
     assert client.post("/api/admin/test", auth=AUTH, json=body,
+                       headers={**H, "Origin": "http://example.test"}).status_code == 403              # чужая схема
+    assert client.post("/api/admin/test", auth=AUTH, json=body,
                        headers={**H, "Sec-Fetch-Site": "cross-site"}).status_code == 403
     assert client.post("/api/admin/test", auth=AUTH, json=body,
                        headers={**H, "Origin": "http://testserver"}).status_code == 200                  # свой сайт
@@ -115,14 +117,27 @@ def test_admin_ip_allowlist(client, monkeypatch):
 
 
 def test_client_ip_behind_proxy(monkeypatch):
-    def req(**headers):
-        return Request({"type": "http", "headers": [(k.encode(), v.encode()) for k, v in headers.items()],
-                        "client": ("127.0.0.1", 1)})
-    assert sec.client_ip(req(**{"x-forwarded-for": "1.1.1.1"})) == "127.0.0.1"     # без доверия заголовки игнорируются
+    def req(peer="127.0.0.1", **headers):
+        return Request({
+            "type": "http", "http_version": "1.1", "method": "GET", "scheme": "http",
+            "path": "/", "raw_path": b"/", "query_string": b"",
+            "headers": [(k.encode(), v.encode()) for k, v in headers.items()],
+            "client": (peer, 1), "server": ("example.test", 80),
+        })
+    assert sec.client_ip(req(**{"x-forwarded-for": "1.1.1.1"})) == "127.0.0.1"
     monkeypatch.setattr(sec, "TRUST_PROXY_HEADERS", True)
-    assert sec.client_ip(req(**{"x-forwarded-for": "6.6.6.6, 9.9.9.9"})) == "9.9.9.9"  # левые записи подделывает клиент
-    assert sec.client_ip(req(**{"cf-connecting-ip": "5.6.7.8", "x-forwarded-for": "9.9.9.9"})) == "5.6.7.8"
+    monkeypatch.setattr(sec, "TRUSTED_PROXY_CIDRS", ["127.0.0.1/32"])
+    assert sec.client_ip(req(**{"x-forwarded-for": "6.6.6.6, 9.9.9.9"})) == "9.9.9.9"
+    assert sec.client_ip(req(**{"cf-connecting-ip": "5.6.7.8"})) == "5.6.7.8"
     assert sec.client_ip(req(**{"cf-connecting-ip": "not-an-ip"})) == "127.0.0.1"
+
+    # Прямой клиент не может подменить IP или протокол через proxy-заголовки.
+    direct = req("198.51.100.25", **{
+        "cf-connecting-ip": "5.6.7.8", "x-forwarded-for": "9.9.9.9",
+        "x-forwarded-proto": "https",
+    })
+    assert sec.client_ip(direct) == "198.51.100.25"
+    assert sec.forwarded_proto(direct) == "http"
 
 
 def test_https_redirect_uses_configured_host(client, monkeypatch):
@@ -251,7 +266,10 @@ def test_sentry_event_is_scrubbed():
         "request": {"method": "POST", "url": "https://x.test/overlay?key=SECRET", "data": {"name": "Вася", "message": "Привет"},
                     "headers": {"Authorization": "Basic abc", "x-nowpayments-sig": "sig"}, "query_string": "key=SECRET"},
         "user": {"ip_address": "1.2.3.4"}, "server_name": "host", "breadcrumbs": {"values": [{"message": "Вася"}]},
-        "exception": {"values": [{"stacktrace": {"frames": [{"function": "f", "vars": {"message": "Привет"}}]}}]},
+        "exception": {"values": [{"type": "ValueError", "value": "Привет", "stacktrace": {
+            "frames": [{"function": "f", "vars": {"message": "Привет"}}]}}]},
+        "message": "Вася", "logentry": {"message": "Привет"}, "tags": {"donor": "Вася"},
+        "fingerprint": ["Привет"],
     }
     out = sec.scrub_sentry_event(event)
     dumped = json.dumps(out, ensure_ascii=False)
