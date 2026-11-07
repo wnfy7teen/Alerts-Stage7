@@ -24,8 +24,8 @@ STATIC = Path(__file__).parent / "static"
 SYMBOLS = {"RUB": "₽", "USD": "$", "EUR": "€", "UAH": "₴", "KZT": "₸"}
 COVER_ALT = "Страница доната: поддержать стримера картой, СБП или криптовалютой, сообщение появится на стриме"
 
-AI_BOTS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "anthropic-ai", "PerplexityBot",
-           "Google-Extended", "Bingbot", "Applebot-Extended"]
+AI_BOTS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User",
+           "anthropic-ai", "PerplexityBot", "Google-Extended", "Bingbot", "Applebot-Extended"]
 PRIVATE_PREFIXES = ["/admin", "/overlay", "/api/", "/thanks", "/media/", "/crypto-webhook"]
 SITE_LABELS = {"twitch.tv": "Twitch", "t.me": "Telegram", "telegram.me": "Telegram", "youtube.com": "YouTube", "vk.com": "VK"}
 
