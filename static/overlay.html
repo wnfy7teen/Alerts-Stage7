@@ -11,9 +11,12 @@
   #stage { position: fixed; inset: 0; display: flex; justify-content: center; align-items: flex-start;
     padding: 24px; box-sizing: border-box; }
   #card { display: none; flex-direction: column; align-items: center; gap: 14px; text-align: center;
-    max-width: 680px; padding: 22px 30px; border-radius: 18px; color: var(--alert-text, #003D55);
-    background: rgba(252, 255, 255, .985); border: 3px solid var(--alert-accent, #0593C6);
-    box-shadow: 0 18px 55px rgba(0, 35, 52, .42), 0 0 0 2px rgba(252, 255, 255, .88); }
+    max-width: 680px; padding: 24px 32px; border-radius: 22px; color: var(--alert-text, #F1F2FA);
+    background: linear-gradient(145deg, rgba(31, 35, 57, .96), rgba(12, 15, 28, .94));
+    border: 1px solid color-mix(in srgb, var(--alert-accent, #A99BFF) 72%, rgba(190, 195, 238, .35));
+    box-shadow: 0 22px 70px rgba(0, 0, 0, .42), 0 0 36px color-mix(in srgb, var(--alert-accent, #A99BFF) 24%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, .09);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
   #card.visible { display: flex; }
   #img.media-visible, #vid.media-visible { display: block; }
   #img, #vid { max-width: 100%; max-height: 300px; border-radius: 10px; display: none; }
@@ -65,8 +68,11 @@ function luminance(hex) {
   return .2126 * rgb[0] + .7152 * rgb[1] + .0722 * rgb[2];
 }
 function readableText(hex) {
-  const ratio = (1.05) / (luminance(hex) + .05);
-  return ratio >= 4.5 ? hex : "#003D55";
+  const backgroundLuminance = .018;
+  const foregroundLuminance = luminance(hex);
+  const ratio = (Math.max(foregroundLuminance, backgroundLuminance) + .05) /
+    (Math.min(foregroundLuminance, backgroundLuminance) + .05);
+  return ratio >= 4.5 ? hex : "#F1F2FA";
 }
 let busy = false;
 
@@ -161,7 +167,7 @@ function speak(text, volume, rate) {  // запасной вариант, есл
 
 async function show(a) {
   const accent = safeHex(a.color);
-  const textColor = readableText(safeHex(a.text_color || "#003D55"));
+  const textColor = readableText(safeHex(a.text_color || "#F1F2FA"));
   const size = Math.max(12, Math.min(80, Number(a.font_size) || 28));
   dynamicStyle.textContent = "#card { --alert-accent: " + accent + "; --alert-text: " + textColor + "; --alert-size: " + size + "px; }";
   document.getElementById("title").textContent = a.title;
