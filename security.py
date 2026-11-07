@@ -90,7 +90,18 @@ class FailureLimiter:
         return len(self._trim(key)) >= self.limit
 
     def fail(self, key: str) -> None:
-        self._trim(key).append(time.monotonic())
+        now = time.monotonic()
+        self._trim(key).append(now)
+        if len(self._fails) > 10_000:
+            self._prune(now)
+
+    def _prune(self, now: float) -> None:
+        """Удаляет IP-ключи, для которых все неудачные попытки уже устарели."""
+        for key, failures in list(self._fails.items()):
+            while failures and now - failures[0] > self.window:
+                failures.popleft()
+            if not failures:
+                del self._fails[key]
 
     def reset(self, key: str) -> None:
         self._fails.pop(key, None)

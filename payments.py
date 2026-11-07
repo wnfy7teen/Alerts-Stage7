@@ -122,9 +122,16 @@ class RateLimiter:
             return False
         q.append(now)
         if len(self._hits) > 10_000:
-            for k in [k for k, v in self._hits.items() if not v]:
-                del self._hits[k]
+            self._prune(now)
         return True
+
+    def _prune(self, now: float) -> None:
+        """Удаляет ключи, у которых полностью истекло скользящее окно."""
+        for key, hits in list(self._hits.items()):
+            while hits and now - hits[0] > self.window:
+                hits.popleft()
+            if not hits:
+                del self._hits[key]
 
 
 # ───────────────────────── база ─────────────────────────

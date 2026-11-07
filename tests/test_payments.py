@@ -24,6 +24,20 @@ def test_sanitize_text():
     assert len(pay.sanitize_text("a" * 900, 500)) == 500
 
 
+def test_rate_limiter_prunes_expired_unique_keys(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(pay.time, "monotonic", lambda: clock[0])
+    limiter = pay.RateLimiter(5, 60)
+
+    for i in range(10_001):
+        assert limiter.allow(f"ip-{i}")
+
+    assert len(limiter._hits) == 10_001
+    clock[0] = 61.0
+    assert limiter.allow("fresh-ip")
+    assert list(limiter._hits) == ["fresh-ip"]
+
+
 # ───── создание платежа ─────
 def test_yookassa_widget_checkout_and_idempotency(client, fake):
     r = donate(client)
