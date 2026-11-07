@@ -258,13 +258,15 @@ def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", pro
     page_size = min(100, max(1, int(limit)))
     page_offset = max(0, int(offset))
     with closing(db()) as c:
-        total = c.execute("SELECT COUNT(*) FROM donations" + where, params).fetchone()[0]
-        rows = c.execute(
+        count_sql = "SELECT COUNT(*) FROM donations" + where  # noqa: S608 - where contains only fixed SQL clauses
+        rows_sql = (
             "SELECT id, amount, currency, status, donor_name, message, provider, provider_txn_id, "
-            "created_at, paid_at FROM donations" + where +
-            " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
-            (*params, page_size, page_offset),
-        ).fetchall()
+            "created_at, paid_at FROM donations"
+            + where  # noqa: S608 - where contains only fixed SQL clauses
+            + " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
+        )
+        total = c.execute(count_sql, params).fetchone()[0]
+        rows = c.execute(rows_sql, (*params, page_size, page_offset)).fetchall()
     return {"total": int(total), "limit": page_size, "offset": page_offset, "items": [dict(r) for r in rows]}
 
 
