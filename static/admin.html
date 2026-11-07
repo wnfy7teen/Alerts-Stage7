@@ -47,14 +47,17 @@
   .delivery-stat span{display:block;color:#CBD5E1;font-size:12px;line-height:1.35}
   .delivery-stat strong{display:block;margin-top:7px;color:#F4D7E3;font-size:clamp(20px,3vw,25px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
   #deliveryUpdated{margin:12px 0 0}#deliveryErrors{margin:9px 0 0;padding-left:20px;color:#FF9AA2}#deliveryErrors:empty{display:none}
+  .history-tools{display:grid;grid-template-columns:2fr 1fr 1fr auto;align-items:end;gap:10px;margin-bottom:13px}
+  .history-tools label{min-width:0}.history-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
+  .history-pager{display:flex;align-items:center;gap:8px}.history-pager button{min-width:76px}
   .table-wrap{width:100%;overflow-x:auto;border:1px solid #3B4A61;border-radius:10px}
   table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:11px 12px;border-bottom:1px solid #3B4A61;text-align:left;white-space:nowrap}
   th{background:#0D1523;color:#F0B7CD;font-weight:700}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#211A27}
   td button{min-height:32px;padding:5px 9px;font-size:12px}
   .bar{position:fixed;z-index:10;right:0;bottom:0;left:0;display:flex;justify-content:center;align-items:center;gap:14px;padding:12px 18px max(12px,env(safe-area-inset-bottom));border-top:1px solid #53647D;background:#111827;box-shadow:0 -8px 24px rgba(0,0,0,.3)}
   #status,#testStatus{color:#F4D7E3;font-size:13px}
-  @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media(max-width:520px){main{padding:19px 11px 110px}.admin-header{display:block}.admin-tag{display:inline-flex;margin-top:12px}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.bar{justify-content:space-between;gap:10px;padding-right:12px;padding-left:12px}#status{flex:1}}
+  @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.history-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:520px){main{padding:19px 11px 110px}.admin-header{display:block}.admin-tag{display:inline-flex;margin-top:12px}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.history-tools{grid-template-columns:minmax(0,1fr)}.history-footer{align-items:flex-start;flex-direction:column}.bar{justify-content:space-between;gap:10px;padding-right:12px;padding-left:12px}#status{flex:1}}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -143,8 +146,15 @@
   </section>
 
   <section id="history-settings">
-    <h2>Последние донаты</h2>
-    <div class="table-wrap"><table><thead><tr><th>Время</th><th>Имя</th><th>Сумма</th><th>Статус</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+    <h2>Финансовый журнал</h2>
+    <div class="history-tools">
+      <label>Поиск по имени, сообщению или ID<input id="txSearch" type="search" maxlength="100" placeholder="Например, имя или номер платежа"></label>
+      <label>Статус<select id="txStatus"><option value="">Все статусы</option><option value="created">Создаётся</option><option value="pending">Ожидает оплаты</option><option value="paid">Оплачен</option><option value="canceled">Отменён</option><option value="failed">Ошибка</option><option value="expired">Истёк</option><option value="refunded">Возвращён</option></select></label>
+      <label>Способ оплаты<select id="txProvider"><option value="">Все способы</option><option value="yookassa">ЮKassa</option><option value="nowpayments">NOWPayments</option><option value="cryptopay">Crypto Pay</option></select></label>
+      <button type="button" id="txExport">Экспорт CSV</button>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Время</th><th>Имя</th><th>Сумма</th><th>Способ</th><th>Статус</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+    <div class="history-footer"><span id="txCount" class="muted" aria-live="polite">Загрузка…</span><div class="history-pager"><button type="button" id="txPrev">Назад</button><span id="txPage" class="muted">1 / 1</span><button type="button" id="txNext">Далее</button></div></div>
   </section>
 </main>
 
@@ -289,14 +299,41 @@ async function loadDelivery() {
   }
 }
 
-async function loadHistory() {
-  const rows = await api("/api/admin/history");
-  const st = { paid: "оплачен", pending: "ждёт оплаты", expired: "истёк" };
-  $("hist").innerHTML = rows.map(r => `<tr><td>${new Date(r.created * 1000).toLocaleString("ru-RU")}</td>
-    <td>${esc(r.name)}</td><td>${esc(r.amount)} ${esc(r.fiat)}</td><td>${st[r.status] || esc(r.status)}</td>
-    <td>${r.status === "paid" ? `<button type="button" data-id="${r.invoice_id}" class="replay">Повторить</button>` : ""}</td></tr>`).join("")
-    || `<tr><td colspan="5" class="muted">Пока нет донатов</td></tr>`;
+let txPage = 1;
+const TX_LIMIT = 50;
+const TX_STATUS = { created: "создаётся", paid: "оплачен", pending: "ожидает оплаты", canceled: "отменён", failed: "ошибка", expired: "истёк", refunded: "возвращён" };
+const TX_PROVIDER = { yookassa: "ЮKassa", nowpayments: "NOWPayments", cryptopay: "Crypto Pay" };
+function transactionFilters() {
+  return { status: $("txStatus").value, provider: $("txProvider").value, q: $("txSearch").value.trim() };
 }
+async function loadHistory() {
+  const filters = transactionFilters();
+  const params = new URLSearchParams({ page: String(txPage), limit: String(TX_LIMIT), ...filters });
+  const result = await api("/api/admin/transactions?" + params.toString());
+  const pages = Math.max(1, Math.ceil(result.total / TX_LIMIT));
+  $("hist").innerHTML = result.items.map(r => `<tr><td>${new Date(r.created_at * 1000).toLocaleString("ru-RU")}</td>
+    <td>${esc(r.donor_name)}</td><td>${esc(r.amount)} ${esc(r.currency)}</td><td>${TX_PROVIDER[r.provider] || esc(r.provider)}</td>
+    <td>${TX_STATUS[r.status] || esc(r.status)}</td>
+    <td>${r.status === "paid" ? `<button type="button" data-id="${r.id}" class="replay">Повторить</button>` : ""}</td></tr>`).join("")
+    || `<tr><td colspan="6" class="muted">По выбранным условиям донатов нет</td></tr>`;
+  $("txCount").textContent = `Найдено: ${result.total.toLocaleString("ru-RU")}`;
+  $("txPage").textContent = `${txPage} / ${pages}`;
+  $("txPrev").disabled = txPage <= 1;
+  $("txNext").disabled = txPage >= pages;
+}
+for (const id of ["txStatus", "txProvider"]) {
+  $(id).addEventListener("change", () => { txPage = 1; loadHistory(); });
+}
+$("txSearch").addEventListener("change", () => { txPage = 1; loadHistory(); });
+$("txSearch").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); txPage = 1; loadHistory(); }
+});
+$("txPrev").addEventListener("click", () => { txPage = Math.max(1, txPage - 1); loadHistory(); });
+$("txNext").addEventListener("click", () => { txPage += 1; loadHistory(); });
+$("txExport").addEventListener("click", () => {
+  const params = new URLSearchParams(transactionFilters());
+  window.location.href = "/api/admin/transactions.csv?" + params.toString();
+});
 $("hist").addEventListener("click", async e => {
   if (!e.target.classList.contains("replay")) return;
   try { await api("/api/admin/replay/" + e.target.dataset.id, { method: "POST" }); } catch (err) { $("status").textContent = err.message; }

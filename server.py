@@ -5,6 +5,8 @@
 Оплату ловим двумя способами: опросом getInvoices (работает всегда) и webhook (мгновенно, по желанию).
 """
 import asyncio
+import csv
+import io
 import json
 import logging
 import os
@@ -671,6 +673,56 @@ def history():
          "fiat": r["currency"], "status": r["status"], "created": r["created_at"], "provider": r["provider"]}
         for r in pay.recent(30)
     ]
+
+
+@app.get("/api/admin/transactions", dependencies=ADMIN)
+def transactions(page: int = 1, limit: int = 50, status: str = "", provider: str = "", q: str = ""):
+    page = max(1, page)
+    limit = min(100, max(1, limit))
+    return pay.list_transactions(
+        limit=limit, offset=(page - 1) * limit, status=status, provider=provider, query=q
+    )
+
+
+def _csv_cell(value) -> str:
+    text = "" if value is None else str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + text
+    return text
+
+
+@app.get("/api/admin/transactions.csv", dependencies=ADMIN)
+def transactions_csv(status: str = "", provider: str = "", q: str = ""):
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID доната", "ID платежа провайдера", "Дата создания", "Дата оплаты",
+        "Имя", "Сообщение", "Сумма", "Валюта", "Статус", "Провайдер",
+    ])
+    offset = 0
+    while offset < 10000:
+        batch = pay.list_transactions(
+            limit=100, offset=offset, status=status, provider=provider, query=q
+        )
+        items = batch["items"]
+        if not items:
+            break
+        for row in items:
+            writer.writerow([
+                _csv_cell(row["id"]), _csv_cell(row["provider_txn_id"]),
+                _csv_cell(row["created_at"]), _csv_cell(row["paid_at"]),
+                _csv_cell(row["donor_name"]), _csv_cell(row["message"]),
+                row["amount"], _csv_cell(row["currency"]), _csv_cell(row["status"]),
+                _csv_cell(row["provider"]),
+            ])
+        offset += len(items)
+        if offset >= batch["total"]:
+            break
+    return Response(
+        content="\ufeff" + output.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="donation-transactions.csv"'},
+    )
 
 
 @app.post("/api/admin/replay/{donation_id}", dependencies=ADMIN)
