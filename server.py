@@ -719,7 +719,7 @@ def transactions_csv(status: str = "", provider: str = "", q: str = ""):
         if offset >= batch["total"]:
             break
     return Response(
-        content="\\ufeff" + output.getvalue(),
+        content="\ufeff" + output.getvalue(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="donation-transactions.csv"'},
     )
