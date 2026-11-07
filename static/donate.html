@@ -150,7 +150,14 @@ function init() {
   if (resume && /^[0-9a-f]{32}$/.test(resume)) resumePayment(resume);
 }
 
-function amountValue() { return parseFloat(String($("amount").value).replace(",", ".")); }
+function amountValue() {
+  const raw = String($("amount").value).trim().replace(",", ".");
+  // Reject partially valid strings such as "250abc" or "1.2.3" instead of
+  // letting parseFloat silently turn them into a different donation amount.
+  if (!/^\\d+(?:\\.\\d{0,2})?$/.test(raw)) return NaN;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : NaN;
+}
 function changed() {
   state.idem = null;  // другие параметры — другой платёж, нужен новый ключ идемпотентности
   updateButton();
