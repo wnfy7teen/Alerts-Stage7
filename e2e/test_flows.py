@@ -1,5 +1,6 @@
 import re
 
+import pytest
 from playwright.sync_api import expect
 
 DID = "a" * 32
@@ -80,7 +81,16 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     ctx.close()
 
 
-def test_overlay_shows_alert(page, base_url, admin_api):
+@pytest.mark.parametrize("animation", ["bounce", "slide", "zoom", "fade", "shake", "flip"])
+def test_overlay_plays_configured_alert_animation(page, base_url, admin_api, animation):
+    cfg = admin_api.get("/api/admin/config").json()
+    cfg["tts_enabled"] = False
+    cfg["tiers"] = [{
+        "min_amount": 0, "animation": animation, "duration": 8, "color": "#0593C6",
+        "tts": False, "image": "", "sound": ""
+    }]
+    assert admin_api.put("/api/admin/config", data=cfg).ok
+
     problems = collect_problems(page)
     page.goto(f"{base_url}/overlay?key=e2e-overlay-key-0123456789")
     for _ in range(40):  # ждём, пока оверлей подключится по WebSocket
@@ -88,10 +98,15 @@ def test_overlay_shows_alert(page, base_url, admin_api):
         if sent["overlays_connected"]:
             break
         page.wait_for_timeout(250)
+
     assert sent["overlays_connected"] == 1
     expect(page.locator("#card")).to_be_visible(timeout=10_000)
     expect(page.locator("#title")).to_contain_text("Вася")
     expect(page.locator("#msg")).to_have_text("Привет, стрим!")
+    expect(page.locator("#card")).to_have_attribute("data-animation", animation)
+    page.wait_for_function(
+        "() => { const card = document.querySelector('#card'); return card && card.getAnimations().length > 0; }"
+    )
     assert problems == []
 
 
