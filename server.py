@@ -688,6 +688,11 @@ def history():
     ]
 
 
+@app.get("/api/admin/analytics", dependencies=ADMIN)
+def admin_analytics(days: int = 30, currency: str = ""):
+    return pay.analytics(days=days, currency=currency or load_cfg().fiat)
+
+
 @app.get("/api/admin/transactions", dependencies=ADMIN)
 def transactions(page: int = 1, limit: int = 50, status: str = "", provider: str = "", q: str = ""):
     page = max(1, page)
