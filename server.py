@@ -15,7 +15,7 @@ import secrets
 import shutil
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 from pathlib import Path
 
 import edge_tts
