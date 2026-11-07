@@ -47,6 +47,23 @@
   .delivery-stat span{display:block;color:#CBD5E1;font-size:12px;line-height:1.35}
   .delivery-stat strong{display:block;margin-top:7px;color:#F4D7E3;font-size:clamp(20px,3vw,25px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
   #deliveryUpdated{margin:12px 0 0}#deliveryErrors{margin:9px 0 0;padding-left:20px;color:#FF9AA2}#deliveryErrors:empty{display:none}
+  .analytics-toolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+  .analytics-toolbar label{width:min(220px,100%)}
+  .analytics-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .analytics-stat{min-width:0;padding:14px;border:1px solid #53647D;border-radius:11px;background:#0D1523}
+  .analytics-stat span{display:block;color:#CBD5E1;font-size:12px}
+  .analytics-stat strong{display:block;margin-top:6px;color:#F4D7E3;font-size:clamp(18px,2.8vw,24px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .analytics-chart-wrap{margin-top:14px;padding:13px;border:1px solid #3B4A61;border-radius:11px;background:#0D1523}
+  .analytics-legend{display:flex;gap:16px;flex-wrap:wrap;margin:0 0 8px;color:#CBD5E1;font-size:12px}
+  .analytics-legend span{display:inline-flex;align-items:center;gap:7px}
+  .analytics-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}
+  .legend-gross{background:#D98EAD}.legend-refunds{background:#E56D7A}
+  #anaChart{display:block;width:100%;height:auto;min-height:180px}
+  .chart-grid{stroke:#344155;stroke-width:1}.chart-label{fill:#CBD5E1;font-size:11px}
+  .chart-gross{fill:#D98EAD}.chart-refund{fill:#E56D7A}
+  .analytics-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+  .analytics-panel{min-width:0}.analytics-panel h3{margin:0 0 9px;color:#F0B7CD;font-size:14px}
+  .analytics-panel .table-wrap{margin:0}
   .history-tools{display:grid;grid-template-columns:2fr 1fr 1fr auto;align-items:end;gap:10px;margin-bottom:13px}
   .history-tools label{min-width:0}.history-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
   .history-pager{display:flex;align-items:center;gap:8px}.history-pager button{min-width:76px}
@@ -56,7 +73,7 @@
   td button{min-height:32px;padding:5px 9px;font-size:12px}
   .bar{position:fixed;z-index:10;right:0;bottom:0;left:0;display:flex;justify-content:center;align-items:center;gap:14px;padding:12px 18px max(12px,env(safe-area-inset-bottom));border-top:1px solid #53647D;background:#111827;box-shadow:0 -8px 24px rgba(0,0,0,.3)}
   #status,#testStatus{color:#F4D7E3;font-size:13px}
-  @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.history-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:760px){main{padding:24px 14px 112px;gap:13px}.admin-header{align-items:flex-start}section{padding:17px}.delivery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-columns{grid-template-columns:minmax(0,1fr)}.history-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:520px){main{padding:19px 11px 110px}.admin-header{display:block}.admin-tag{display:inline-flex;margin-top:12px}.grid{grid-template-columns:minmax(0,1fr)}label.wide{grid-column:auto}.tier{padding:13px}.file-row{grid-template-columns:minmax(0,1fr)}.file-row .up{justify-self:start}.history-tools{grid-template-columns:minmax(0,1fr)}.history-footer{align-items:flex-start;flex-direction:column}.bar{justify-content:space-between;gap:10px;padding-right:12px;padding-left:12px}#status{flex:1}}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 </style>
@@ -65,7 +82,7 @@
 <main>
   <header class="admin-header"><div><p class="eyebrow">Панель управления</p><h1>Донат-алерты</h1><p class="admin-intro">Настройки приёма донатов, оформления и доставки уведомлений.</p></div><span class="admin-tag">Управление донатами</span></header>
   <nav class="admin-nav" aria-label="Разделы панели">
-    <a href="#payment-settings">Приём донатов</a><a href="#alert-settings">Вид алерта</a><a href="#tts-settings">Озвучка</a><a href="#tiers-settings">Уровни</a><a href="#test-settings">Проверка</a><a href="#delivery-settings">Доставка</a><a href="#history-settings">История</a>
+    <a href="#payment-settings">Приём донатов</a><a href="#alert-settings">Вид алерта</a><a href="#tts-settings">Озвучка</a><a href="#tiers-settings">Уровни</a><a href="#test-settings">Проверка</a><a href="#delivery-settings">Доставка</a><a href="#analytics-settings">Аналитика</a><a href="#history-settings">История</a>
   </nav>
 
   <section>
@@ -145,6 +162,32 @@
     <ul id="deliveryErrors"></ul>
   </section>
 
+  <section id="analytics-settings">
+    <h2>Финансовая аналитика</h2>
+    <div class="analytics-toolbar">
+      <label>Период<select id="analyticsPeriod"><option value="7">7 дней</option><option value="30" selected>30 дней</option><option value="90">90 дней</option><option value="0">Всё время</option></select></label>
+      <label>Валюта<select id="analyticsCurrency"><option value="">Загрузка…</option></select></label>
+      <button type="button" id="analyticsRefresh">Обновить</button>
+      <span id="analyticsUpdated" class="muted" role="status" aria-live="polite"></span>
+    </div>
+    <div class="analytics-stats">
+      <div class="analytics-stat"><span>Поступления</span><strong id="anaGross">—</strong></div>
+      <div class="analytics-stat"><span>Возвраты <small id="anaRefundCount"></small></span><strong id="anaRefunded">—</strong></div>
+      <div class="analytics-stat"><span>Чистыми</span><strong id="anaNet">—</strong></div>
+      <div class="analytics-stat"><span>Количество донатов</span><strong id="anaCount">—</strong></div>
+      <div class="analytics-stat"><span>Средний донат</span><strong id="anaAverage">—</strong></div>
+      <div class="analytics-stat"><span>Крупнейший донат</span><strong id="anaLargest">—</strong></div>
+    </div>
+    <div class="analytics-chart-wrap">
+      <div class="analytics-legend"><span><i class="legend-gross"></i>Поступления</span><span><i class="legend-refunds"></i>Возвраты</span></div>
+      <svg id="anaChart" viewBox="0 0 820 270" role="img" aria-label="График поступлений и возвратов по дням"></svg>
+    </div>
+    <div class="analytics-columns">
+      <div class="analytics-panel"><h3>Топ донатеров</h3><div class="table-wrap"><table><thead><tr><th>#</th><th>Имя</th><th>Донаты</th><th>Чистый вклад</th></tr></thead><tbody id="anaDonors"></tbody></table></div></div>
+      <div class="analytics-panel"><h3>По платёжным системам</h3><div class="table-wrap"><table><thead><tr><th>Провайдер</th><th>Донаты</th><th>Чистый вклад</th></tr></thead><tbody id="anaProviders"></tbody></table></div></div>
+    </div>
+    <p class="muted nomargin">Возвраты учитываются по дате подтверждения. Если провайдер не передаёт сумму полного возврата, для расчёта используется исходная сумма доната. График за период «Всё время» показывает последние 365 дней.</p>
+  </section>
   <section id="history-settings">
     <h2>Финансовый журнал</h2>
     <div class="history-tools">
@@ -303,6 +346,85 @@ let txPage = 1;
 const TX_LIMIT = 50;
 const TX_STATUS = { created: "создаётся", paid: "оплачен", pending: "ожидает оплаты", partially_refunded: "частично возвращён", refunded: "возвращён", canceled: "отменён", failed: "ошибка", expired: "истёк" };
 const TX_PROVIDER = { yookassa: "ЮKassa", nowpayments: "NOWPayments", cryptopay: "Crypto Pay" };
+function formatMoney(value, currency) {
+  return Number(value || 0).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currency;
+}
+function svgNode(name, attrs = {}, text = "") {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+  if (text) node.textContent = text;
+  return node;
+}
+function renderAnalyticsChart(daily) {
+  const svg = $("anaChart");
+  svg.replaceChildren();
+  const width = 820, height = 270, left = 48, right = 14, top = 18, bottom = 34;
+  const plotWidth = width - left - right, plotHeight = height - top - bottom;
+  const maxValue = Math.max(1, ...daily.flatMap(d => [d.gross, d.refunded]));
+  for (let i = 0; i <= 4; i++) {
+    const y = top + plotHeight * i / 4;
+    svg.append(svgNode("line", { x1: left, y1: y, x2: width - right, y2: y, class: "chart-grid" }));
+    svg.append(svgNode("text", { x: left - 8, y: y + 4, "text-anchor": "end", class: "chart-label" },
+      Math.round(maxValue * (4 - i) / 4).toLocaleString("ru-RU")));
+  }
+  const slot = plotWidth / Math.max(1, daily.length);
+  const barWidth = Math.max(1, Math.min(12, slot * .28));
+  daily.forEach((d, i) => {
+    const x = left + i * slot + slot * .18;
+    const grossHeight = d.gross / maxValue * plotHeight;
+    const refundHeight = d.refunded / maxValue * plotHeight;
+    const gross = svgNode("rect", {
+      x, y: top + plotHeight - grossHeight, width: barWidth, height: Math.max(0, grossHeight), rx: 1, class: "chart-gross",
+    });
+    gross.append(svgNode("title", {}, d.date + ": поступления " + d.gross));
+    const refund = svgNode("rect", {
+      x: x + barWidth + Math.max(1, slot * .06), y: top + plotHeight - refundHeight,
+      width: barWidth, height: Math.max(0, refundHeight), rx: 1, class: "chart-refund",
+    });
+    refund.append(svgNode("title", {}, d.date + ": возвраты " + d.refunded));
+    svg.append(gross, refund);
+    const labelEvery = daily.length > 180 ? 30 : daily.length > 60 ? 10 : daily.length > 14 ? 5 : 1;
+    if (i % labelEvery === 0 || i === daily.length - 1) {
+      svg.append(svgNode("text", {
+        x: x + slot * .45, y: height - 10, "text-anchor": "middle", class: "chart-label",
+      }, d.date.slice(5)));
+    }
+  });
+}
+async function loadAnalytics() {
+  const params = new URLSearchParams({
+    days: $("analyticsPeriod").value,
+    currency: $("analyticsCurrency").value,
+  });
+  const data = await api("/api/admin/analytics?" + params.toString());
+  const currencySelect = $("analyticsCurrency");
+  const nextCurrencies = data.currencies.length ? data.currencies : [data.currency];
+  const currentCurrencies = Array.from(currencySelect.options).map(o => o.value);
+  if (currentCurrencies.join("|") !== nextCurrencies.join("|")) {
+    currencySelect.innerHTML = nextCurrencies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  }
+  currencySelect.value = data.currency;
+  $("anaGross").textContent = formatMoney(data.gross, data.currency);
+  $("anaRefunded").textContent = formatMoney(data.refunded, data.currency);
+  $("anaRefundCount").textContent = data.refund_count ? "(" + data.refund_count + ")" : "";
+  $("anaNet").textContent = formatMoney(data.net, data.currency);
+  $("anaCount").textContent = data.donation_count.toLocaleString("ru-RU");
+  $("anaAverage").textContent = formatMoney(data.average, data.currency);
+  $("anaLargest").textContent = formatMoney(data.largest, data.currency);
+  $("anaDonors").innerHTML = data.top_donors.map((r, i) =>
+    `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.count}</td><td>${formatMoney(r.net, data.currency)}</td></tr>`
+  ).join("") || `<tr><td colspan="4" class="muted">Пока нет оплаченных донатов</td></tr>`;
+  const providerNames = { yookassa: "ЮKassa", nowpayments: "NOWPayments", cryptopay: "Crypto Pay" };
+  $("anaProviders").innerHTML = data.providers.map(r =>
+    `<tr><td>${providerNames[r.provider] || esc(r.provider)}</td><td>${r.count}</td><td>${formatMoney(r.net, data.currency)}</td></tr>`
+  ).join("") || `<tr><td colspan="3" class="muted">Нет данных</td></tr>`;
+  renderAnalyticsChart(data.daily);
+  $("analyticsUpdated").textContent = "Обновлено: " + new Date().toLocaleTimeString("ru-RU");
+}
+$("analyticsPeriod").addEventListener("change", loadAnalytics);
+$("analyticsCurrency").addEventListener("change", loadAnalytics);
+$("analyticsRefresh").addEventListener("click", loadAnalytics);
+
 function transactionFilters() {
   return { status: $("txStatus").value, provider: $("txProvider").value, q: $("txSearch").value.trim() };
 }
@@ -349,8 +471,10 @@ $("hist").addEventListener("click", async e => {
   $("overlayLink").textContent = (await api("/api/admin/links")).overlay;
   loadHistory();
   loadDelivery();
+  loadAnalytics();
   setInterval(loadHistory, 15000);
   setInterval(loadDelivery, 15000);
+  setInterval(loadAnalytics, 60000);
 })();
 </script>
 </body>

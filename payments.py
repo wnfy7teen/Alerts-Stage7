@@ -20,6 +20,7 @@ import sqlite3
 import time
 import uuid
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 from collections import defaultdict, deque
 from contextlib import closing
@@ -344,6 +345,117 @@ def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", pro
             (*params, page_size, page_offset),
         ).fetchall()
     return {"total": int(total), "limit": page_size, "offset": page_offset, "items": [dict(r) for r in rows]}
+
+
+def analytics(*, days: int = 30, currency: str = "") -> dict:
+    """Сводка поступлений, возвратов и вклада донатеров в выбранной валюте."""
+    period_days = days if days in (7, 30, 90, 0) else 30
+    now = time.time()
+    period_start = 0.0 if period_days == 0 else now - period_days * 86400
+    chart_days = 365 if period_days == 0 else period_days
+    chart_start_date = datetime.now(timezone.utc).date() - timedelta(days=chart_days - 1)
+    chart_start = datetime.combine(chart_start_date, datetime.min.time(), tzinfo=timezone.utc).timestamp()
+
+    with closing(db()) as c:
+        currency_rows = c.execute(
+            "SELECT currency, COUNT(*) AS n FROM donations "
+            "WHERE status IN ('paid','partially_refunded','refunded') GROUP BY currency ORDER BY n DESC, currency"
+        ).fetchall()
+        currencies = [r["currency"] for r in currency_rows]
+        selected_currency = currency.strip().upper() if currency.strip().upper() in currencies else (
+            currencies[0] if currencies else (currency.strip().upper() or "RUB")
+        )
+
+        summary = c.execute(
+            "SELECT COUNT(*) AS donation_count, COALESCE(SUM(amount), 0) AS gross, "
+            "COALESCE(MAX(amount), 0) AS largest FROM donations "
+            "WHERE created_at>=? AND created_at<=? AND currency=? "
+            "AND status IN ('paid','partially_refunded','refunded')",
+            (period_start, now, selected_currency),
+        ).fetchone()
+        refunds = c.execute(
+            "SELECT COUNT(*) AS refund_count, COALESCE(SUM(CASE "
+            "WHEN r.amount IS NOT NULL THEN r.amount WHEN d.status='refunded' THEN d.amount ELSE 0 END), 0) AS amount "
+            "FROM refunds r JOIN donations d ON d.id=r.donation_id "
+            "WHERE r.created_at>=? AND r.created_at<=? AND d.currency=? AND r.status='succeeded'",
+            (period_start, now, selected_currency),
+        ).fetchone()
+        daily_payments = c.execute(
+            "SELECT strftime('%Y-%m-%d', created_at, 'unixepoch') AS day, "
+            "SUM(amount) AS gross, COUNT(*) AS count FROM donations "
+            "WHERE created_at>=? AND created_at<=? AND currency=? "
+            "AND status IN ('paid','partially_refunded','refunded') GROUP BY day",
+            (chart_start, now, selected_currency),
+        ).fetchall()
+        daily_refunds = c.execute(
+            "SELECT strftime('%Y-%m-%d', r.created_at, 'unixepoch') AS day, "
+            "SUM(CASE WHEN r.amount IS NOT NULL THEN r.amount "
+            "WHEN d.status='refunded' THEN d.amount ELSE 0 END) AS amount, COUNT(*) AS count "
+            "FROM refunds r JOIN donations d ON d.id=r.donation_id "
+            "WHERE r.created_at>=? AND r.created_at<=? AND d.currency=? AND r.status='succeeded' GROUP BY day",
+            (chart_start, now, selected_currency),
+        ).fetchall()
+        top_donors = c.execute(
+            "SELECT donor_name, COUNT(*) AS donation_count, SUM(CASE "
+            "WHEN status='paid' THEN amount "
+            "WHEN status='partially_refunded' THEN MAX(0, amount - COALESCE("
+            "(SELECT SUM(amount) FROM refunds WHERE donation_id=donations.id AND status='succeeded'), 0)) "
+            "ELSE 0 END) AS net_amount FROM donations "
+            "WHERE created_at>=? AND created_at<=? AND currency=? "
+            "AND status IN ('paid','partially_refunded','refunded') "
+            "GROUP BY donor_name ORDER BY net_amount DESC, donation_count DESC LIMIT 10",
+            (period_start, now, selected_currency),
+        ).fetchall()
+        providers = c.execute(
+            "SELECT provider, COUNT(*) AS donation_count, SUM(CASE "
+            "WHEN status='paid' THEN amount "
+            "WHEN status='partially_refunded' THEN MAX(0, amount - COALESCE("
+            "(SELECT SUM(amount) FROM refunds WHERE donation_id=donations.id AND status='succeeded'), 0)) "
+            "ELSE 0 END) AS net_amount FROM donations "
+            "WHERE created_at>=? AND created_at<=? AND currency=? "
+            "AND status IN ('paid','partially_refunded','refunded') "
+            "GROUP BY provider ORDER BY net_amount DESC",
+            (period_start, now, selected_currency),
+        ).fetchall()
+
+    payments_by_day = {r["day"]: dict(r) for r in daily_payments}
+    refunds_by_day = {r["day"]: dict(r) for r in daily_refunds}
+    daily = []
+    for day_offset in range(chart_days):
+        day = (chart_start_date + timedelta(days=day_offset)).isoformat()
+        gross = float(payments_by_day.get(day, {}).get("gross", 0) or 0)
+        refunded = float(refunds_by_day.get(day, {}).get("amount", 0) or 0)
+        daily.append({
+            "date": day, "gross": round(gross, 2), "refunded": round(refunded, 2),
+            "net": round(gross - refunded, 2),
+            "donations": int(payments_by_day.get(day, {}).get("count", 0) or 0),
+            "refund_count": int(refunds_by_day.get(day, {}).get("count", 0) or 0),
+        })
+
+    gross = float(summary["gross"] or 0)
+    refunded = float(refunds["amount"] or 0)
+    count = int(summary["donation_count"] or 0)
+    return {
+        "days": period_days,
+        "currency": selected_currency,
+        "currencies": currencies,
+        "gross": round(gross, 2),
+        "refunded": round(refunded, 2),
+        "net": round(gross - refunded, 2),
+        "donation_count": count,
+        "refund_count": int(refunds["refund_count"] or 0),
+        "average": round(gross / count, 2) if count else 0,
+        "largest": round(float(summary["largest"] or 0), 2),
+        "daily": daily,
+        "top_donors": [
+            {"name": r["donor_name"], "count": int(r["donation_count"]), "net": round(float(r["net_amount"] or 0), 2)}
+            for r in top_donors
+        ],
+        "providers": [
+            {"provider": r["provider"], "count": int(r["donation_count"]), "net": round(float(r["net_amount"] or 0), 2)}
+            for r in providers
+        ],
+    }
 
 
 def alert_delivery_stats() -> dict:

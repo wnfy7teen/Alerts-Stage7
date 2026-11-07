@@ -448,6 +448,43 @@ def test_admin_transaction_csv_neutralizes_spreadsheet_formulas(client, fake):
     assert "'=HYPERLINK" in response.text
 
 
+def test_admin_analytics_reports_gross_refunds_net_and_top_donors(client, fake):
+    donate(client, key="a" * 24, name="Alpha")
+    beta = donate(client, "nowpayments", key="b" * 24, name="Beta").json()["donation_id"]
+    gamma = donate(client, "cryptopay", key="g" * 24, name="Gamma").json()["donation_id"]
+    created = pay.time.time() - 3600
+    with closing(pay.db()) as db:
+        db.execute("UPDATE donations SET status='paid', created_at=?, paid_at=?",
+                   (created, created + 10))
+        db.commit()
+
+    assert pay.record_refund(
+        donation_id=beta, provider="nowpayments", provider_refund_id="analytics-partial",
+        amount=50, currency="RUB",
+    )
+    assert pay.record_refund(
+        donation_id=gamma, provider="cryptopay", provider_refund_id="analytics-full",
+        amount=300, currency="RUB",
+    )
+
+    response = client.get("/api/admin/analytics?days=30&currency=RUB", auth=("admin", "pw-test-1234567"))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["gross"] == 900
+    assert data["refunded"] == 350
+    assert data["net"] == 550
+    assert data["donation_count"] == 3
+    assert data["refund_count"] == 2
+    assert data["average"] == 300
+    assert data["largest"] == 300
+    assert data["top_donors"][0]["name"] == "Alpha"
+    assert data["top_donors"][1]["name"] == "Beta"
+    assert data["top_donors"][1]["net"] == 250
+    assert data["top_donors"][2]["net"] == 0
+    assert sum(day["gross"] for day in data["daily"]) == 900
+    assert sum(day["refunded"] for day in data["daily"]) == 350
+
+
 
 
 def test_paid_handler_skips_alert_generation_when_overlay_is_offline(monkeypatch):
