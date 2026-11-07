@@ -584,7 +584,8 @@ async def mark_paid(donation_id: str) -> bool:
     with closing(db()) as c:
         cur = c.execute(
             "UPDATE donations SET status=CASE WHEN status='partially_refunded' "
-            "THEN status ELSE 'paid' END, paid_at=? WHERE id=? AND status NOT IN ('paid','refunded')",
+            "THEN status ELSE 'paid' END, paid_at=? WHERE id=? "
+            "AND status NOT IN ('paid','refunded') AND (status!='partially_refunded' OR paid_at IS NULL)",
             (now, donation_id),
         )
         first = cur.rowcount == 1
