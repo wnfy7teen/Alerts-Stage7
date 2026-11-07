@@ -192,7 +192,7 @@ def test_asset_routes(client):
 
 
 def test_bots_get_html_not_a_block(client):
-    for ua in ("GPTBot", "ClaudeBot", "PerplexityBot", "TelegramBot (like TwitterBot)", "Googlebot"):
+    for ua in ("GPTBot", "OAI-SearchBot", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot", "TelegramBot (like TwitterBot)", "Googlebot"):
         r = client.get("/", headers={"user-agent": ua})
         assert r.status_code == 200 and "<h1" in r.text, ua
 
