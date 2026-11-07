@@ -313,7 +313,7 @@ def recent(limit: int = 30) -> list[dict]:
 
 def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", provider: str = "", query: str = "") -> dict:
     """Возвращает страницу финансового журнала и общее число совпадений."""
-    allowed_statuses = {"created", "pending", "paid", "canceled", "failed", "expired", "refunded"}
+    allowed_statuses = {"created", "pending", "paid", "partially_refunded", "refunded", "canceled", "failed", "expired"}
     allowed_providers = {"yookassa", "nowpayments", "cryptopay"}
     status_filter = status if status in allowed_statuses else ""
     provider_filter = provider if provider in allowed_providers else ""
@@ -334,7 +334,10 @@ def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", pro
         ).fetchone()[0]
         rows = c.execute(
             "SELECT id, amount, currency, status, donor_name, message, provider, provider_txn_id, "
-            "created_at, paid_at FROM donations "
+            "created_at, paid_at, "
+            "(SELECT COUNT(*) FROM refunds WHERE donation_id=donations.id AND status='succeeded') AS refund_count, "
+            "(SELECT COALESCE(SUM(amount), 0) FROM refunds WHERE donation_id=donations.id AND status='succeeded') "
+            "AS refunded_amount FROM donations "
             "WHERE (?='' OR status=?) AND (?='' OR provider=?) "
             "AND (?='' OR id LIKE ? OR provider_txn_id LIKE ? OR donor_name LIKE ? OR message LIKE ?) "
             "ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
