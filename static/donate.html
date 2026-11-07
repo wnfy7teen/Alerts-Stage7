@@ -27,6 +27,8 @@ fieldset{min-width:0;margin:0;padding:0;border:0;display:grid;gap:12px}legend{ma
 .chips button:hover{background:#223451;border-color:var(--accent)}.chips button[aria-pressed=true]{background:#263A5B;border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(165,180,252,.24)}
 .hint{display:flex;justify-content:space-between;gap:10px;color:var(--text-muted);font-size:13px;font-weight:400;line-height:1.45}#minhint{margin-top:-10px}
 input[type=text],input[type=number],textarea{width:100%;min-width:0;padding:13px 14px;border:1px solid var(--border-strong);border-radius:11px;outline:none;background:var(--field-bg);color:#FFF;font:inherit;font-size:15px;font-weight:400;transition:border-color .16s ease,box-shadow .16s ease}
+/* Keep the donation amount typography above the generic text-field reset. */
+.amount input#amount{font-family:"Unbounded",sans-serif;font-size:clamp(36px,9vw,48px);line-height:1.1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
 input::placeholder,textarea::placeholder{color:#AAB7C9;opacity:1}
 input[type=text]:focus,input[type=number]:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(165,180,252,.16)}
 textarea{min-height:104px;resize:vertical;line-height:1.5}

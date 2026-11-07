@@ -296,3 +296,5 @@ def test_donation_amount_field_hides_native_number_spinner(client):
     assert "border:0!important" in response.text
     assert "font-size:clamp(36px,9vw,48px)" in response.text
     assert "line-height:1.1" in response.text
+    assert response.text.index(".amount input#amount{") > response.text.index("input[type=text],input[type=number],textarea{")
+    assert "font-family:\"Unbounded\",sans-serif;font-size:clamp(36px,9vw,48px)" in response.text
