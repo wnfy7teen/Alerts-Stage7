@@ -499,6 +499,18 @@ async def _yk_verdict(row: sqlite3.Row) -> str:
     return "canceled" if data.get("status") == "canceled" else "pending"
 
 
+async def _yk_refund_data(refund_id: str) -> dict:
+    """Получает возврат из API ЮKassa; входящий webhook сам по себе не считается доказательством."""
+    async with _client() as c:
+        r = await c.get(f"{YK_API}/refunds/{refund_id}", auth=(YK_SHOP_ID, YK_SECRET))
+    if r.status_code != 200:
+        raise PaymentError("ЮKassa недоступна", 502)
+    data = r.json()
+    if data.get("id") != refund_id or data.get("status") != "succeeded":
+        return {}
+    return data
+
+
 # ───────────────────────── NOWPayments (крипта на сайте) ─────────────────────────
 async def _np_create(donation_id: str, amount: float, currency: str) -> tuple[str, dict]:
     body = {
@@ -782,10 +794,34 @@ def _ip_allowed(ip: str, cidrs: list[str]) -> bool:
 
 
 async def handle_yookassa_webhook(body: dict, client_ip: str) -> None:
-    """У ЮKassa нет подписи: защита — проверка статуса запросом в API + (необязательно) список IP."""
+    """У ЮKassa нет подписи: платежи и возвраты перепроверяются через API + (необязательно) список IP."""
     if YK_WEBHOOK_IPS and not _ip_allowed(client_ip, YK_WEBHOOK_IPS):
         raise PaymentError("forbidden", 403)
-    txn = (body.get("object") or {}).get("id")
+    obj = body.get("object")
+    if not isinstance(obj, dict):
+        return
+    if body.get("event") == "refund.succeeded":
+        refund_id = obj.get("id")
+        if not isinstance(refund_id, str) or not refund_id:
+            return
+        refund = await _yk_refund_data(refund_id)
+        if not refund:
+            return
+        payment_id = refund.get("payment_id")
+        amount = refund.get("amount") or {}
+        row = find_by_txn("yookassa", payment_id) if isinstance(payment_id, str) else None
+        if not row or str(amount.get("currency", "")).upper() != row["currency"].upper():
+            return
+        try:
+            refund_amount = Decimal(str(amount.get("value")))
+        except (InvalidOperation, TypeError, ValueError):
+            return
+        record_refund(
+            donation_id=row["id"], provider="yookassa", provider_refund_id=refund_id,
+            amount=float(refund_amount), currency=row["currency"],
+        )
+        return
+    txn = obj.get("id")
     row = find_by_txn("yookassa", txn) if isinstance(txn, str) else None
     if row:
         await refresh(row)
