@@ -278,7 +278,7 @@ async function renderCheckout(c) {
     const p = document.createElement("p"); p.className = "sub checkout-note";
     p.textContent = "Оплата пройдёт в Telegram. Вернитесь на эту страницу: статус обновится сам.";
     const a = document.createElement("a"); a.className = "pay"; a.href = c.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = c.label || "Открыть Crypto Bot";
-    box.style.display = "grid"; box.style.gap = "14px"; box.append(p, a);
+    box.classList.add("checkout-stack"); box.append(p, a);
   }
 }
 
