@@ -85,7 +85,8 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     save_size = save_button.evaluate("(el) => ({ width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height })")
     assert 120 <= save_size["width"] <= 145
     assert 36 <= save_size["height"] <= 44
-    assert page.locator("main.admin-shell").evaluate("(el) => el.getBoundingClientRect().bottom - document.documentElement.scrollHeight > -60")
+    bottom_padding = page.locator("main.admin-shell").evaluate("(el) => parseFloat(getComputedStyle(el).paddingBottom)")
+    assert bottom_padding <= 40
     page.get_by_role("button", name="Отправить тестовый алерт").click()
     expect(page.locator("#testStatus")).to_contain_text("Оверлей не подключён")
     assert problems == []
