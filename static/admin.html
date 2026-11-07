@@ -149,11 +149,11 @@
     <h2>Финансовый журнал</h2>
     <div class="history-tools">
       <label>Поиск по имени, сообщению или ID<input id="txSearch" type="search" maxlength="100" placeholder="Например, имя или номер платежа"></label>
-      <label>Статус<select id="txStatus"><option value="">Все статусы</option><option value="created">Создаётся</option><option value="pending">Ожидает оплаты</option><option value="paid">Оплачен</option><option value="canceled">Отменён</option><option value="failed">Ошибка</option><option value="expired">Истёк</option><option value="refunded">Возвращён</option></select></label>
+      <label>Статус<select id="txStatus"><option value="">Все статусы</option><option value="created">Создаётся</option><option value="pending">Ожидает оплаты</option><option value="paid">Оплачен</option><option value="partially_refunded">Частично возвращён</option><option value="refunded">Возвращён</option><option value="canceled">Отменён</option><option value="failed">Ошибка</option><option value="expired">Истёк</option><option value="refunded">Возвращён</option></select></label>
       <label>Способ оплаты<select id="txProvider"><option value="">Все способы</option><option value="yookassa">ЮKassa</option><option value="nowpayments">NOWPayments</option><option value="cryptopay">Crypto Pay</option></select></label>
       <button type="button" id="txExport">Экспорт CSV</button>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Время</th><th>Имя</th><th>Сумма</th><th>Способ</th><th>Статус</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Время</th><th>Имя</th><th>Сумма</th><th>Возврат</th><th>Способ</th><th>Статус</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
     <div class="history-footer"><span id="txCount" class="muted" aria-live="polite">Загрузка…</span><div class="history-pager"><button type="button" id="txPrev">Назад</button><span id="txPage" class="muted">1 / 1</span><button type="button" id="txNext">Далее</button></div></div>
   </section>
 </main>
@@ -301,7 +301,7 @@ async function loadDelivery() {
 
 let txPage = 1;
 const TX_LIMIT = 50;
-const TX_STATUS = { created: "создаётся", paid: "оплачен", pending: "ожидает оплаты", canceled: "отменён", failed: "ошибка", expired: "истёк", refunded: "возвращён" };
+const TX_STATUS = { created: "создаётся", paid: "оплачен", pending: "ожидает оплаты", partially_refunded: "частично возвращён", refunded: "возвращён", canceled: "отменён", failed: "ошибка", expired: "истёк" };
 const TX_PROVIDER = { yookassa: "ЮKassa", nowpayments: "NOWPayments", cryptopay: "Crypto Pay" };
 function transactionFilters() {
   return { status: $("txStatus").value, provider: $("txProvider").value, q: $("txSearch").value.trim() };
@@ -311,11 +311,14 @@ async function loadHistory() {
   const params = new URLSearchParams({ page: String(txPage), limit: String(TX_LIMIT), ...filters });
   const result = await api("/api/admin/transactions?" + params.toString());
   const pages = Math.max(1, Math.ceil(result.total / TX_LIMIT));
-  $("hist").innerHTML = result.items.map(r => `<tr><td>${new Date(r.created_at * 1000).toLocaleString("ru-RU")}</td>
-    <td>${esc(r.donor_name)}</td><td>${esc(r.amount)} ${esc(r.currency)}</td><td>${TX_PROVIDER[r.provider] || esc(r.provider)}</td>
-    <td>${TX_STATUS[r.status] || esc(r.status)}</td>
-    <td>${r.status === "paid" ? `<button type="button" data-id="${r.id}" class="replay">Повторить</button>` : ""}</td></tr>`).join("")
-    || `<tr><td colspan="6" class="muted">По выбранным условиям донатов нет</td></tr>`;
+  $("hist").innerHTML = result.items.map(r => {
+    const refundLabel = !r.refund_count ? "—" :
+      r.refunded_amount === null ? "Зафиксирован" : esc(r.refunded_amount) + " " + esc(r.currency);
+    return `<tr><td>${new Date(r.created_at * 1000).toLocaleString("ru-RU")}</td>
+      <td>${esc(r.donor_name)}</td><td>${esc(r.amount)} ${esc(r.currency)}</td><td>${refundLabel}</td>
+      <td>${TX_PROVIDER[r.provider] || esc(r.provider)}</td><td>${TX_STATUS[r.status] || esc(r.status)}</td>
+      <td>${r.status === "paid" || r.status === "partially_refunded" ? `<button type="button" data-id="${r.id}" class="replay">Повторить</button>` : ""}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="muted">По выбранным условиям донатов нет</td></tr>`;
   $("txCount").textContent = `Найдено: ${result.total.toLocaleString("ru-RU")}`;
   $("txPage").textContent = `${txPage} / ${pages}`;
   $("txPrev").disabled = txPage <= 1;
