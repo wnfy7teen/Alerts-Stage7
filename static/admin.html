@@ -196,7 +196,7 @@
           </div>
         </div>
       </section>
-      <section id="overlay-settings"><h2>Подключение OBS</h2><p class="muted flush">Добавьте в OBS источник «Браузер», затем скопируйте ссылку ниже. Не показывайте её зрителям.</p><code id="overlayLink">…</code></section>
+      <section id="overlay-settings"><h2>Подключение OBS</h2><p class="muted flush">Добавьте в OBS источник «Браузер», затем скопируйте ссылку ниже. Не показывайте её зрителям.</p><code id="overlayLink">Загрузка ссылки…</code><div class="monitor-actions" style="margin-top:10px"><button type="button" id="copyOverlayLink">Скопировать ссылку</button><span id="overlayCopyStatus" class="muted" role="status" aria-live="polite"></span></div><p class="monitor-note">Рекомендуемый размер источника: 1000 × 600. В OBS включите «Обновлять браузер при активации сцены», если хотите перезагружать виджет при переключении сцен.</p></section>
   <section id="payment-settings">
     <h2>Приём донатов</h2>
     <div class="grid">
@@ -554,7 +554,15 @@ function monitorDate(value) {
 async function loadMonitoring() {
   const health = await api("/api/admin/system-health");
   const statusNames = { ok: "Система работает", warning: "Есть предупреждения", critical: "Критическая проблема" };
-  $("monitorOverall").textContent = statusNames[health.status] || "Статус неизвестен";\n  $("dashHealth").textContent = health.status === "ok" ? "Всё в порядке" : health.status === "critical" ? "Есть проблема" : "Нужна проверка";\n  $("dashHealth").className = "status-pill " + (health.status === "ok" ? "ok" : "warning");\n  $("dashPayments").textContent = health.payments.providers.length ? "Подключены" : "Не настроены";\n  $("dashPayments").className = "status-pill " + (health.payments.providers.length ? "ok" : "warning");\n  $("dashObs").textContent = health.obs.status === "connected" ? "Подключён" : "Нет подключения";\n  $("dashObs").className = "status-pill " + (health.obs.status === "connected" ? "ok" : "warning");\n  $("dashBackup").textContent = health.backup.last_success_at ? "Есть копия" : "Нет данных";\n  $("dashBackup").className = "status-pill " + (health.backup.last_success_at ? "ok" : "warning");
+  $("monitorOverall").textContent = statusNames[health.status] || "Статус неизвестен";
+  $("dashHealth").textContent = health.status === "ok" ? "Всё в порядке" : health.status === "critical" ? "Есть проблема" : "Нужна проверка";
+  $("dashHealth").className = "status-pill " + (health.status === "ok" ? "ok" : "warning");
+  $("dashPayments").textContent = health.payments.providers.length ? "Подключены" : "Не настроены";
+  $("dashPayments").className = "status-pill " + (health.payments.providers.length ? "ok" : "warning");
+  $("dashObs").textContent = health.obs.status === "connected" ? "Подключён" : "Нет подключения";
+  $("dashObs").className = "status-pill " + (health.obs.status === "connected" ? "ok" : "warning");
+  $("dashBackup").textContent = health.backup.last_success_at ? "Есть копия" : "Нет данных";
+  $("dashBackup").className = "status-pill " + (health.backup.last_success_at ? "ok" : "warning");
   $("monitorOverall").className = "monitor-state " + (["ok", "warning", "critical"].includes(health.status) ? health.status : "");
   $("monDatabase").textContent = health.database.status === "ok"
     ? "OK · " + formatBytes(health.database.size_bytes + health.database.wal_size_bytes)
@@ -662,7 +670,11 @@ async function loadAnalytics() {
     currencySelect.innerHTML = nextCurrencies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
   }
   currencySelect.value = data.currency;
-  $("anaGross").textContent = formatMoney(data.gross, data.currency);\n  $("dashGross").textContent = formatMoney(data.gross, data.currency);\n  $("dashRefunds").textContent = formatMoney(data.refunded, data.currency);\n  $("dashNet").textContent = formatMoney(data.net, data.currency);\n  $("dashCount").textContent = data.donation_count.toLocaleString("ru-RU");
+  $("anaGross").textContent = formatMoney(data.gross, data.currency);
+  $("dashGross").textContent = formatMoney(data.gross, data.currency);
+  $("dashRefunds").textContent = formatMoney(data.refunded, data.currency);
+  $("dashNet").textContent = formatMoney(data.net, data.currency);
+  $("dashCount").textContent = data.donation_count.toLocaleString("ru-RU");
   $("anaRefunded").textContent = formatMoney(data.refunded, data.currency);
   $("anaRefundCount").textContent = data.refund_count ? "(" + data.refund_count + ")" : "";
   $("anaNet").textContent = formatMoney(data.net, data.currency);
@@ -727,6 +739,16 @@ $("hist").addEventListener("click", async e => {
   await reloadMedia();
   fill();
   $("overlayLink").textContent = (await api("/api/admin/links")).overlay;
+  $("copyOverlayLink").addEventListener("click", async () => {
+    const value = $("overlayLink").textContent.trim();
+    if (!value || value === "Загрузка ссылки…") return;
+    try {
+      await navigator.clipboard.writeText(value);
+      $("overlayCopyStatus").textContent = "Ссылка скопирована";
+    } catch (err) {
+      $("overlayCopyStatus").textContent = "Не удалось скопировать. Выделите ссылку и скопируйте вручную.";
+    }
+  });
   loadHistory();
   loadDelivery();
   loadAnalytics();
