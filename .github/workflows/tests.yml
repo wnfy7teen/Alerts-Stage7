@@ -120,7 +120,7 @@ jobs:
           urls = root.findall(ns + "url")
           assert len(urls) == 1, f"expected one public URL, got {len(urls)}"
           assert urls[0].findtext(ns + "loc") == base + "/", "sitemap URL must use the canonical homepage"
-          assert re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", urls[0].findtext(ns + "lastmod") or ""), "sitemap lastmod must be YYYY-MM-DD"
+          assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", urls[0].findtext(ns + "lastmod") or ""), "sitemap lastmod must be YYYY-MM-DD"
           assert "<script" not in sitemap_text.lower(), "unexpected script element in XML sitemap"
 
           assert llms.startswith("# "), "llms.txt must start with a Markdown H1"
