@@ -279,3 +279,9 @@ def test_shared_brand_theme_is_available_and_allowed_by_csp(client):
         csp = response.headers["content-security-policy"]
         assert "style-src 'self'" in csp
         assert 'href="/theme.css"' in response.text
+
+def test_donation_page_uses_short_payment_heading(client):
+    for path in ("/", "/?donation=" + "a" * 32):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert '<p class="sub">Поддержать меня^^</p>' in response.text
