@@ -202,7 +202,7 @@ const ALERT_ANIMATIONS = {
 function playEntranceAnimation(requestedName) {
   const name = Object.prototype.hasOwnProperty.call(ALERT_ANIMATIONS, requestedName) ? requestedName : "bounce";
   card.dataset.animation = name;
-  card.getAnimations().forEach(animation => animation.cancel());
+  if (typeof card.getAnimations === "function") card.getAnimations().forEach(animation => animation.cancel());
   card.className = "visible";
 
   const preset = ALERT_ANIMATIONS[name];
@@ -224,7 +224,7 @@ function playEntranceAnimation(requestedName) {
 }
 
 async function playExitAnimation() {
-  card.getAnimations().forEach(animation => animation.cancel());
+  if (typeof card.getAnimations === "function") card.getAnimations().forEach(animation => animation.cancel());
   if (typeof card.animate === "function") {
     try {
       const animation = card.animate(
