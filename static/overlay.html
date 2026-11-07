@@ -42,6 +42,14 @@
                         80% { transform: translateX(9px) } }
   @keyframes outAnim  { to { transform: translateY(-30px) scale(.92); opacity: 0 } }
   @media (prefers-reduced-motion: reduce) { #card { animation-duration: .01s !important; } }
+
+
+  /* High-contrast readable interface */
+
+  #card { background: rgba(8, 13, 23, .97); border: 2px solid var(--alert-accent, #8EA2FF); border-radius: 16px; box-shadow: 0 12px 36px rgba(0,0,0,.55); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  #title { color: var(--alert-text, #FFFFFF); text-shadow: 0 2px 3px rgba(0,0,0,.65); }
+  #msg { color: var(--alert-text, #FFFFFF); opacity: 1; text-shadow: 0 2px 3px rgba(0,0,0,.7); }
+
 </style>
 </head>
 <body>

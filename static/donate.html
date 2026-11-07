@@ -146,6 +146,33 @@
     .chips button, .method .card, .pay, input, textarea { transition: none; }
   }
 
+
+
+  /* High-contrast readable interface */
+
+  body { background: var(--bg); color: var(--text); }
+  h1 { color: #FFFFFF; background: none; -webkit-text-fill-color: #FFFFFF; letter-spacing: -.025em; }
+  h2, legend, label { color: #F8FAFC; }
+  .sub, .hint, footer, .faq-answer p, .status, .result p { color: #CBD5E1; }
+  .box { background: #111827; border: 1px solid #40516B; border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.32); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  input[type=text], input[type=number], textarea, .amount, .addr { background: #090F1B; color: #FFFFFF; border: 1px solid #53647D; }
+  input::placeholder, textarea::placeholder { color: #AAB7C9; opacity: 1; }
+  .amount span { color: #C3CEFF; }
+  .chips button { background: #172235; color: #F8FAFC; border: 1px solid #53647D; }
+  .chips button:hover, .chips button[aria-pressed=true] { background: #263A5B; border-color: #A5B4FC; color: #FFFFFF; }
+  .method .card { background: #0D1523; border: 1px solid #53647D; color: #F8FAFC; }
+  .method .card small { color: #CBD5E1; }
+  .method input:checked + .card { background: #202F50; border: 2px solid #A5B4FC; }
+  .pay { background: #7188F0; color: #FFFFFF; border: 1px solid #AAB8FF; border-radius: 11px; box-shadow: none; }
+  .pay:hover:not(:disabled) { background: #8297FA; box-shadow: none; filter: none; }
+  .ghost, .links a { color: #C4CEFF; }
+  .faq-list, .faq-item { border-color: #3B4A61; }
+  .faq-chevron { border-color: #C4CEFF; }
+  #err { color: #FF9AA2; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, .method input:focus-visible + .card { outline: 3px solid #B9C5FF; outline-offset: 3px; }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus { border-color: #B9C5FF; box-shadow: 0 0 0 3px rgba(185,197,255,.2); }
+  @media (max-width: 520px) { .box { padding: 18px; } }
+
 </style>
 </head>
 <body>
