@@ -23,6 +23,18 @@
   a:focus-visible { outline: 2px solid #bdb3ff; outline-offset: 5px; border-radius: 3px; }
   @media (max-width: 520px) { main { padding: 30px 22px; border-radius: 18px; } }
   @media (prefers-reduced-motion: reduce) { a { transition: none; } }
+
+
+  /* High-contrast readable interface */
+
+  body { background: #080B12; color: #F8FAFC; }
+  main { background: #111827; border: 1px solid #40516B; border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.32); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  h1 { color: #FFFFFF; background: none; -webkit-text-fill-color: #FFFFFF; letter-spacing: -.02em; }
+  p { color: #CBD5E1; }
+  a { color: #C4CEFF; text-decoration: underline; text-underline-offset: 4px; }
+  a:hover { color: #FFFFFF; text-shadow: none; }
+  a:focus-visible { outline: 3px solid #B9C5FF; outline-offset: 4px; }
+
 </style>
 </head>
 <body>
