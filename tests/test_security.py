@@ -285,3 +285,11 @@ def test_donation_page_uses_short_payment_heading(client):
         response = client.get(path)
         assert response.status_code == 200
         assert '<p class="sub">Поддержать меня^^</p>' in response.text
+
+
+def test_donation_amount_field_hides_native_number_spinner(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "-webkit-appearance:none;appearance:textfield;-moz-appearance:textfield" in response.text
+    assert "::-webkit-inner-spin-button" in response.text
+    assert "::-webkit-outer-spin-button" in response.text
