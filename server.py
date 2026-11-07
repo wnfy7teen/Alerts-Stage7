@@ -216,13 +216,15 @@ async def synth(text: str, cfg: Config) -> str:
     return f"/media/tts/{name}"
 
 
-def prune_tts_files(max_age_seconds: int = 86400, limit: int = 500) -> int:
-    """Удаляет только старые автоматически созданные MP3, ограничивая одну очистку."""
+def prune_tts_files(max_age_seconds: int = 86400, limit: int = 500, scan_limit: int = 2000) -> int:
+    """Удаляет старые автоматически созданные MP3 с ограничением удаления и объёма сканирования."""
     cutoff = time.time() - max(0, max_age_seconds)
     removed = 0
+    scanned = 0
     for path in TTS_DIR.glob("*.mp3"):
-        if removed >= max(1, limit):
+        if removed >= max(1, limit) or scanned >= max(1, scan_limit):
             break
+        scanned += 1
         try:
             if path.is_file() and path.stat().st_mtime < cutoff:
                 path.unlink()
