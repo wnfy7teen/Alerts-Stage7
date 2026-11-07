@@ -80,9 +80,12 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
         page.get_by_role("button", name="Понятно, начать работу").click()
     save_button = page.locator("#save")
     expect(save_button).to_be_visible()
+    expect(page.locator(".bar")).to_have_count(0)
+    expect(save_button.locator("xpath=ancestor::header[contains(@class, 'admin-header')]")).to_have_count(1)
     save_size = save_button.evaluate("(el) => ({ width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height })")
-    assert 100 <= save_size["width"] <= 150
+    assert 120 <= save_size["width"] <= 145
     assert 36 <= save_size["height"] <= 44
+    assert page.locator("main.admin-shell").evaluate("(el) => el.getBoundingClientRect().bottom - document.documentElement.scrollHeight > -60")
     page.get_by_role("button", name="Отправить тестовый алерт").click()
     expect(page.locator("#testStatus")).to_contain_text("Оверлей не подключён")
     assert problems == []
