@@ -72,7 +72,7 @@ def test_html_is_complete_without_javascript(page):
     assert r.status_code == 200 and "text/html" in r.headers["content-type"]
     body = " ".join(p.text)
     assert "{{" not in r.text, "в страницу попали неподставленные значения"
-    assert "vanesso4ka — стример на Twitch" in body                      # сущность описана в первом абзаце
+    assert "Поддержать меня^^" in body                                # короткий заголовок вместо повторного описания
     assert "Карта или СБП" in body and "Криптовалюта" in body              # способы оплаты видны роботу
     assert "Минимум 50 ₽" in body and "Частые вопросы" in body
 
