@@ -102,6 +102,8 @@ def test_admin_csrf(client):
     assert client.post("/api/admin/test", auth=AUTH, json=body,
                        headers={**H, "Origin": "https://evil.example"}).status_code == 403               # чужой Origin
     assert client.post("/api/admin/test", auth=AUTH, json=body,
+                       headers={**H, "Origin": "http://example.test"}).status_code == 403              # чужая схема
+    assert client.post("/api/admin/test", auth=AUTH, json=body,
                        headers={**H, "Sec-Fetch-Site": "cross-site"}).status_code == 403
     assert client.post("/api/admin/test", auth=AUTH, json=body,
                        headers={**H, "Origin": "http://testserver"}).status_code == 200                  # свой сайт
