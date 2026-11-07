@@ -738,11 +738,25 @@ def system_health():
                 "MIN(created_at) AS oldest FROM donations WHERE status='pending'",
                 (now - 600,),
             ).fetchone()
+            donation_count = db.execute("SELECT COUNT(*) FROM donations").fetchone()[0]
+            paid_count = db.execute(
+                "SELECT COUNT(*) FROM donations WHERE status IN ('paid','partially_refunded','refunded')"
+            ).fetchone()[0]
+            refund_count = db.execute("SELECT COUNT(*) FROM refunds").fetchone()[0]
+            alert_count = db.execute("SELECT COUNT(*) FROM alert_outbox").fetchone()[0]
         db_size = pay.DB_PATH.stat().st_size if pay.DB_PATH.exists() else 0
         wal_path = Path(str(pay.DB_PATH) + "-wal")
         wal_size = wal_path.stat().st_size if wal_path.exists() else 0
-        database = {"status": "ok" if integrity == "ok" else "error",
-                    "integrity": integrity, "size_bytes": db_size, "wal_size_bytes": wal_size}
+        database = {
+            "status": "ok" if integrity == "ok" else "error",
+            "integrity": integrity,
+            "size_bytes": db_size,
+            "wal_size_bytes": wal_size,
+            "donations_total": donation_count,
+            "donations_paid": paid_count,
+            "refunds_total": refund_count,
+            "alerts_total": alert_count,
+        }
     except Exception as exc:
         log.warning("Проверка базы данных не удалась (%s)", type(exc).__name__)
         pending = {"total": 0, "stale": 0, "oldest": None}

@@ -108,6 +108,10 @@ def test_admin_system_health_reports_database_disk_and_backup(client, monkeypatc
     assert response.status_code == 200
     data = response.json()
     assert data["database"]["status"] == "ok"
+    assert data["database"]["donations_total"] == 0
+    assert data["database"]["donations_paid"] == 0
+    assert data["database"]["refunds_total"] == 0
+    assert data["database"]["alerts_total"] == 0
     assert data["disk"]["free_percent"] > 0
     assert data["backup"]["status"] == "success"
     assert data["backup"]["file"] == "donations-test.db"
