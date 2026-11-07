@@ -148,6 +148,25 @@ def test_nowpayments_refunded_is_not_recorded_as_failed(client, fake):
     assert journal["items"][0]["refunded_amount"] is None
 
 
+def test_yookassa_full_refund_marks_donation_refunded(client, fake):
+    did = donate(client, key="f" * 24).json()["donation_id"]
+    fake.yk_status = "succeeded"
+    payment_hook = {"event": "payment.succeeded", "object": {"id": "yk-1"}}
+    assert client.post("/api/webhooks/yookassa", json=payment_hook).status_code == 200
+
+    fake.yk_refund_data = {
+        "id": "rf-1", "status": "succeeded", "payment_id": "yk-1",
+        "amount": {"value": "300.00", "currency": "RUB"},
+    }
+    refund_hook = {"event": "refund.succeeded", "object": {"id": "rf-1"}}
+    assert client.post("/api/webhooks/yookassa", json=refund_hook).status_code == 200
+
+    assert pay.get_row(did)["status"] == "refunded"
+    journal = pay.list_transactions(status="refunded")
+    assert journal["total"] == 1
+    assert journal["items"][0]["refunded_amount"] == 300.0
+
+
 def test_yookassa_forged_webhook_does_not_credit(client, fake):
     donate(client)  # платёж не оплачен: ЮKassa отвечает pending
     client.post("/api/webhooks/yookassa", json={"event": "payment.succeeded", "object": {"id": "yk-1"}})
