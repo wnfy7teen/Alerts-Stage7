@@ -111,6 +111,8 @@
   .breadcrumbs a{color:#F0B7CD;text-decoration:none}.breadcrumbs a:hover{text-decoration:underline}
   .page-help{margin:-7px 0 2px;color:#CBD5E1;font-size:13px}
   .dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .dashboard-grid--spaced{margin-top:15px}
+  .monitor-actions--spaced{margin-top:10px}
   .dashboard-card{min-width:0;padding:15px;border:1px solid #53647D;border-radius:12px;background:#0D1523}
   .dashboard-card span{display:block;color:#CBD5E1;font-size:12px}
   .dashboard-card strong{display:block;margin-top:7px;color:#F4D7E3;font-size:clamp(19px,2.4vw,25px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
@@ -178,7 +180,7 @@
       <section id="dashboard">
         <h2>Добро пожаловать!</h2>
         <p class="muted flush">Здесь собрана главная информация. Выберите нужный раздел в меню или воспользуйтесь быстрыми ссылками.</p>
-        <div class="dashboard-grid" style="margin-top:15px">
+        <div class="dashboard-grid dashboard-grid--spaced">
           <div class="dashboard-card" title="Сумма подтверждённых донатов за выбранный период."><span>Поступления</span><strong id="dashGross">—</strong><small>За выбранный период</small></div>
           <div class="dashboard-card" title="Сумма возвратов, которые удалось учесть в системе."><span>Возвраты</span><strong id="dashRefunds">—</strong><small>Учтённые возвраты</small></div>
           <div class="dashboard-card" title="Поступления за вычетом учтённых возвратов."><span>Чистый доход</span><strong id="dashNet">—</strong><small>После возвратов</small></div>
@@ -199,7 +201,7 @@
           </div>
         </div>
       </section>
-      <section id="overlay-settings"><h2>Подключение OBS</h2><p class="muted flush">Добавьте в OBS источник «Браузер», затем скопируйте ссылку ниже. Не показывайте её зрителям.</p><code id="overlayLink">Загрузка ссылки…</code><div class="monitor-actions" style="margin-top:10px"><button type="button" id="copyOverlayLink">Скопировать ссылку</button><span id="overlayCopyStatus" class="muted" role="status" aria-live="polite"></span></div><p class="monitor-note">Рекомендуемый размер источника: 1000 × 600. В OBS включите «Обновлять браузер при активации сцены», если хотите перезагружать виджет при переключении сцен.</p></section>
+      <section id="overlay-settings"><h2>Подключение OBS</h2><p class="muted flush">Добавьте в OBS источник «Браузер», затем скопируйте ссылку ниже. Не показывайте её зрителям.</p><code id="overlayLink">Загрузка ссылки…</code><div class="monitor-actions monitor-actions--spaced"><button type="button" id="copyOverlayLink">Скопировать ссылку</button><span id="overlayCopyStatus" class="muted" role="status" aria-live="polite"></span></div><p class="monitor-note">Рекомендуемый размер источника: 1000 × 600. В OBS включите «Обновлять браузер при активации сцены», если хотите перезагружать виджет при переключении сцен.</p></section>
   <section id="payment-settings">
     <h2>Приём донатов</h2>
     <div class="grid">
