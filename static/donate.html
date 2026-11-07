@@ -64,13 +64,14 @@ footer{margin-top:24px;padding:0 4px;color:var(--text-muted);font-size:13px;line
 .developer-credit .dev-label{margin:0;color:#D2A9BA;font-size:9px;font-weight:800;letter-spacing:.2em}
 .developer-credit .dev-name{margin:9px 0 3px;color:var(--text-main);font-size:clamp(21px,5vw,25px);font-weight:850;letter-spacing:-.045em;line-height:1.2}
 .developer-credit .dev-role{margin:0;color:var(--text-muted);font-size:12px;letter-spacing:.015em}
-.developer-contact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:20px}
-.developer-contact div{min-width:0;display:grid;gap:6px;padding:11px 9px;border:1px solid rgba(165,175,190,.13);border-radius:10px;background:rgba(8,11,18,.32)}
-.developer-contact span{color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.045em}
+.developer-contact{display:flex;align-items:center;justify-content:center;gap:clamp(18px,4vw,36px);width:100%;margin:20px auto 0;padding:14px 18px;border:1px solid rgba(165,175,190,.16);border-radius:10px;background:rgba(8,11,18,.32)}
+.developer-contact div{min-width:0;display:grid;gap:6px}
+.developer-contact .contact-label{display:flex;align-items:center;gap:6px;color:#E9A8C3;font-size:10px;font-weight:700;letter-spacing:.045em}
+.developer-contact .contact-label svg{width:13px;height:13px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .developer-contact a{color:#F0B7CD;font-size:12px;font-weight:700;text-decoration:none;text-underline-offset:3px;overflow-wrap:anywhere;transition:color .16s ease}
 .developer-contact a:hover{color:#FFD7E6;text-decoration:underline}
 .developer-credit .dev-copyright{margin:17px 0 0;padding-top:13px;border-top:1px solid rgba(165,175,190,.13);font-size:10px;letter-spacing:.025em;color:var(--text-muted)}
-@media(max-width:380px){.developer-credit{padding:22px 13px 15px}.developer-contact{grid-template-columns:1fr;gap:8px}.developer-contact div{padding:10px}}
+@media(max-width:380px){.developer-credit{padding:22px 13px 15px}.developer-contact{gap:14px;padding:12px 10px}.developer-contact a{font-size:11px}}
 .links{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 8px;padding:0;list-style:none}.links a{display:inline-block;padding:7px 0;color:#F0B7CD;font-weight:700;text-underline-offset:3px}
 input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #F0B7CD;outline-offset:3px}
 @media(max-width:520px){body{padding:22px 13px 24px}header{padding:4px 3px 18px}.box{gap:18px;padding:19px 17px;border-radius:15px}.chips{grid-template-columns:repeat(2,minmax(0,1fr))}.chips button{min-height:48px}.method .card{min-height:64px;padding:12px}}
@@ -155,17 +156,17 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
 
     <section class="developer-credit" aria-label="Информация о разработчике">
       <p class="dev-label">DESIGNED &amp; DEVELOPED BY</p>
-      <p class="dev-name">Kristofer Biksan</p>
+      <p class="dev-name">Krisofer Biksan</p>
       <p class="dev-role">Web Developer · Technical Support</p>
 
       <div class="developer-contact">
         <div>
-          <span>Business inquiries</span>
-          <a href="mailto:usdtuser1@proton.me">usdtuser1@proton.me</a>
+          <span class="contact-label"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Business inquiries</span>
+          <a href="mailto:usdtuser1@gmail.com">usdtuser1@gmail.com</a>
         </div>
         <div>
-          <span>Telegram</span>
-          <a href="https://t.me/web3ResearchCN?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer">@web3ResearchCN</a>
+          <span class="contact-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Telegram</span>
+          <a href="https://t.me/web3ResearchCN" target="_blank" rel="noopener noreferrer">@web3ResearchCN</a>
         </div>
       </div>
 
