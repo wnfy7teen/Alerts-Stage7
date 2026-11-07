@@ -697,7 +697,7 @@ def transactions_csv(status: str = "", provider: str = "", q: str = ""):
     writer = csv.writer(output)
     writer.writerow([
         "ID доната", "ID платежа провайдера", "Дата создания", "Дата оплаты",
-        "Имя", "Сообщение", "Сумма", "Валюта", "Статус", "Провайдер",
+        "Имя", "Сообщение", "Сумма", "Возвращено", "Количество возвратов", "Валюта", "Статус", "Провайдер",
     ])
     offset = 0
     while offset < 10000:
@@ -712,8 +712,8 @@ def transactions_csv(status: str = "", provider: str = "", q: str = ""):
                 _csv_cell(row["id"]), _csv_cell(row["provider_txn_id"]),
                 _csv_cell(row["created_at"]), _csv_cell(row["paid_at"]),
                 _csv_cell(row["donor_name"]), _csv_cell(row["message"]),
-                row["amount"], _csv_cell(row["currency"]), _csv_cell(row["status"]),
-                _csv_cell(row["provider"]),
+                row["amount"], row["refunded_amount"], row["refund_count"],
+                _csv_cell(row["currency"]), _csv_cell(row["status"]), _csv_cell(row["provider"]),
             ])
         offset += len(items)
         if offset >= batch["total"]:
