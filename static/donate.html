@@ -4,14 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 {{HEAD}}
+<link rel="stylesheet" href="/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;800&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #15111d; --panel: #1f1930; --line: #3a2f55; --text: #f4f0fb; --muted: #a79fbc;
-    --accent: #b794ff; --accent-ink: #1a1030; --error: #ff8a8a; --ok: #7be0a0;
-  }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   body { margin: 0; min-height: 100vh; display: flex; justify-content: center; padding: 20px;
@@ -24,7 +21,7 @@
   .faq p { color: var(--muted); margin: 0; font-size: 15px; }
   footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
   .links { list-style: none; display: flex; gap: 16px; padding: 0; margin: 0 0 8px; }
-  .links a { color: var(--accent); display: inline-block; padding: 10px 0; }
+  .links a { color: var(--action); display: inline-block; padding: 10px 0; }
   .ts-on { min-height: 65px; }
   h1 { font-family: "Unbounded", "Onest", sans-serif; font-weight: 800; font-size: 26px; margin: 0 0 6px; overflow-wrap: anywhere; }
   .sub { color: var(--muted); margin: 0 0 22px; }
@@ -46,24 +43,26 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chips button { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 999px;
     padding: 10px 16px; min-height: 44px; font: inherit; cursor: pointer; }
-  .chips button:hover, .chips button[aria-pressed=true] { border-color: var(--accent); background: rgba(183,148,255,.12); }
+  .chips button:hover, .chips button[aria-pressed=true] { border-color: var(--accent); background: var(--panel-soft); }
   .hint { color: var(--muted); font-size: 13px; font-weight: 400; display: flex; justify-content: space-between; }
   .methods { display: grid; gap: 8px; }
   .method { position: relative; }
   .method input { position: absolute; opacity: 0; inset: 0; }
   .method .card { display: grid; gap: 2px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; cursor: pointer; }
-  .method input:checked + .card { border-color: var(--accent); background: rgba(183,148,255,.12); }
+  .method input:checked + .card { border-color: var(--accent); background: var(--panel-soft); }
   .method .card small { color: var(--muted); font-weight: 400; }
-  .pay { display: block; width: 100%; text-align: center; text-decoration: none; background: var(--accent); color: var(--accent-ink);
+  .pay { display: block; width: 100%; text-align: center; text-decoration: none; background: var(--action); color: var(--brand-white);
     border: 0; border-radius: 12px; padding: 15px; min-height: 48px; font: inherit; font-weight: 800; font-size: 17px; cursor: pointer; }
   .pay:disabled { opacity: .6; cursor: wait; }
-  .ghost { background: transparent; color: var(--muted); border: 0; font: inherit; text-decoration: underline; cursor: pointer; padding: 10px; min-height: 44px; }
+  .ghost { background: transparent; color: var(--action); border: 0; font: inherit; text-decoration: underline; cursor: pointer; padding: 10px; min-height: 44px; }
   .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   #err { color: var(--error); min-height: 1.2em; margin: 0; font-size: 14px; }
   .status { display: flex; align-items: center; gap: 10px; color: var(--muted); }
   .spin { width: 18px; height: 18px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
   #yk-form { background: #fff; border-radius: 12px; padding: 4px; min-height: 120px; }
+  .checkout-stack { display: grid; gap: 14px; }
+  .checkout-note { margin: 0; }
   .addr { font-family: ui-monospace, Consolas, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
     padding: 10px 12px; overflow-wrap: anywhere; font-size: 14px; }
   .qr { display: block; margin: 0 auto; width: 200px; height: 200px; background: #fff; border-radius: 10px; padding: 8px; }
@@ -181,7 +180,7 @@ function initTurnstile(siteKey) {
   s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
   s.onload = () => {
     state.tsId = window.turnstile.render("#ts", {
-      sitekey: siteKey, theme: "dark", language: "ru",
+      sitekey: siteKey, theme: "light", language: "ru",
       callback: t => { state.ts = t; },
       "expired-callback": () => { state.ts = null; },
       "error-callback": () => { state.ts = null; },
@@ -272,14 +271,14 @@ async function renderCheckout(c) {
     const copy = document.createElement("button"); copy.type = "button"; copy.className = "pay"; copy.textContent = "Скопировать адрес";
     copy.onclick = async () => { try { await navigator.clipboard.writeText(c.address); copy.textContent = "Адрес скопирован"; } catch (_) { copy.textContent = "Выделите адрес вручную"; } };
     box.appendChild(copy);
-    box.style.display = "grid"; box.style.gap = "14px";
+    box.classList.add("checkout-stack");
   } else if (c.type === "link") {
     let ok = false; try { ok = new URL(c.url).protocol === "https:"; } catch (_) {}
     if (!ok) return showResult("failed");
-    const p = document.createElement("p"); p.className = "sub"; p.style.margin = "0";
+    const p = document.createElement("p"); p.className = "sub checkout-note";
     p.textContent = "Оплата пройдёт в Telegram. Вернитесь на эту страницу: статус обновится сам.";
     const a = document.createElement("a"); a.className = "pay"; a.href = c.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = c.label || "Открыть Crypto Bot";
-    box.style.display = "grid"; box.style.gap = "14px"; box.append(p, a);
+    box.classList.add("checkout-stack"); box.append(p, a);
   }
 }
 

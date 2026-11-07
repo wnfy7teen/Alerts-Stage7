@@ -103,7 +103,7 @@ _HOST_RE = re.compile(r"^[A-Za-z0-9.\-:\[\]]{1,255}$")
 def csp(kind: str, nonce: str, host: str) -> str:
     """Политика для страницы. Inline-скрипты и стили допускаются только с nonce этого ответа."""
     parts = ["default-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'", "object-src 'none'"]
-    script, style = f"'nonce-{nonce}'", f"'nonce-{nonce}'"
+    script, style = f"'nonce-{nonce}'", f"'self' 'nonce-{nonce}'"
     if kind == "donate":
         yk = "https://yookassa.ru https://*.yookassa.ru https://yoomoney.ru https://*.yoomoney.ru"
         parts += [

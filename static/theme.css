@@ -1,0 +1,19 @@
+:root {
+  color-scheme: light;
+  --brand-blue: #0593C6;
+  --brand-white: #FCFFFF;
+  --brand-pink: #F8C8DC;
+  --bg: var(--brand-white);
+  --panel: #FFFFFF;
+  --panel-soft: #FFF2F7;
+  --line: #B9DDE9;
+  --text: #003D55;
+  --muted: #315A6B;
+  --accent: var(--brand-blue);
+  --accent-ink: var(--brand-white);
+  --action: #005A7A;
+  --action-hover: #004A66;
+  --error: #9B1C1C;
+  --ok: #145C3A;
+  --warning: #7A4300;
+}

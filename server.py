@@ -64,7 +64,7 @@ class Tier(BaseModel):
     sound: str = ""            # файл из папки media (mp3/wav/ogg); пусто = встроенный сигнал
     animation: str = "bounce"  # bounce | slide | zoom | fade | shake | flip
     duration: int = Field(default=8, ge=2, le=60)  # минимум секунд на экране
-    color: str = "#9146FF"
+    color: str = "#0593C6"
     tts: bool = True
 
     @field_validator("image", "sound")
@@ -91,7 +91,7 @@ class Config(BaseModel):
     max_message_len: int = Field(default=500, ge=0, le=500)
     # внешний вид алерта
     title_template: str = Field(default="{name} задонатил(а) {amount}", max_length=200)
-    text_color: str = "#FFFFFF"
+    text_color: str = "#003D55"
     font_size: int = Field(default=28, ge=12, le=80)
     sound_volume: float = Field(default=0.8, ge=0, le=1)
     # озвучка
@@ -106,7 +106,7 @@ class Config(BaseModel):
         max_length=20,
         default_factory=lambda: [
             Tier(min_amount=0),
-            Tier(min_amount=1000, animation="zoom", color="#F5A623", duration=12),
+            Tier(min_amount=1000, animation="zoom", color="#005A7A", duration=12),
         ]
     )
 
@@ -132,7 +132,22 @@ def load_cfg() -> Config:
     if _cfg is None:
         if CFG_PATH.exists():
             try:
-                _cfg = Config(**json.loads(CFG_PATH.read_text(encoding="utf-8")))
+                raw = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+                migrated = False
+                if raw.get("text_color", "").upper() == "#FFFFFF":
+                    raw["text_color"] = "#003D55"
+                    migrated = True
+                for tier in raw.get("tiers", []):
+                    old_color = str(tier.get("color", "")).upper()
+                    if old_color == "#9146FF":
+                        tier["color"] = "#0593C6"
+                        migrated = True
+                    elif old_color == "#F5A623":
+                        tier["color"] = "#005A7A"
+                        migrated = True
+                _cfg = Config(**raw)
+                if migrated:
+                    save_cfg(_cfg)
             except Exception as e:
                 log.error("config.json повреждён (%s), использую значения по умолчанию", e)
                 _cfg = Config()
@@ -374,6 +389,11 @@ def static_asset(name: str, media_type: str) -> Response:
 @app.get("/og-cover.png")
 def og_cover():
     return static_asset("og-cover.png", "image/png")
+
+
+@app.get("/theme.css")
+def theme_css():
+    return static_asset("theme.css", "text/css; charset=utf-8")
 
 
 @app.get("/favicon.svg")
