@@ -302,6 +302,7 @@
     </div>
     <div class="monitor-grid">
       <div class="monitor-card"><span>База данных</span><strong id="monDatabase">—</strong></div>
+      <div class="monitor-card"><span>Записи в базе</span><strong id="monDbRecords">—</strong></div>
       <div class="monitor-card"><span>Свободное место</span><strong id="monDisk">—</strong></div>
       <div class="monitor-card"><span>Последний бэкап</span><strong id="monBackup">—</strong></div>
       <div class="monitor-card"><span>Платёжные провайдеры</span><strong id="monProviders">—</strong></div>
@@ -567,6 +568,9 @@ async function loadMonitoring() {
   $("monDatabase").textContent = health.database.status === "ok"
     ? "OK · " + formatBytes(health.database.size_bytes + health.database.wal_size_bytes)
     : "Ошибка проверки";
+  $("monDbRecords").textContent = health.database.status === "ok"
+    ? health.database.donations_total + " донатов · " + health.database.refunds_total + " возвратов · " + health.database.alerts_total + " алертов"
+    : "Нет данных";
   $("monDisk").textContent = health.disk.free_percent === null
     ? "Нет данных" : health.disk.free_percent + "% · " + formatBytes(health.disk.free_bytes);
   $("monBackup").textContent = health.backup.last_success_at
