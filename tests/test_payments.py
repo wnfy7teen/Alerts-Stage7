@@ -210,6 +210,22 @@ def test_poller_credits_without_webhook(client, fake):
     assert len(fake.alerts) == 1
 
 
+def test_old_provider_pending_payment_is_reconciled_instead_of_locally_expired(client, fake):
+    response = donate(client, "nowpayments")
+    donation_id = response.json()["donation_id"]
+    with closing(pay.db()) as db:
+        db.execute("UPDATE donations SET created_at=? WHERE id=?", (pay.time.time() - pay.PENDING_TTL - 60, donation_id))
+        db.commit()
+
+    fake.np_status = "finished"
+    asyncio.run(pay.poll_once(0))
+
+    row = pay.get_row(donation_id)
+    assert row["status"] == "paid"
+    assert row["paid_at"] is not None
+    assert len(fake.alerts) == 1
+
+
 def test_prune_delivered_alerts_preserves_pending_and_respects_batch(client, fake):
     first, second, third = "1" * 32, "2" * 32, "3" * 32
     now = pay.time.time()
