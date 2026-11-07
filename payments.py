@@ -280,7 +280,10 @@ async def _cp_verdict(row: sqlite3.Row) -> str:
         return "pending"
     if inv.get("status") == "paid":
         if abs(float(inv.get("amount", 0)) - row["amount"]) > 0.01:
-            log.error("Crypto Pay: сумма счёта %s не совпадает с донатом %s", inv.get("amount"), row["id"])
+            log.error("Crypto Pay: сумма счёта не совпадает с донатом %s", row["id"])
+            return "pending"
+        if str(inv.get("fiat", "")).upper() != row["currency"].upper():
+            log.error("Crypto Pay: валюта счёта не совпадает с донатом %s", row["id"])
             return "pending"
         return "paid"
     return "expired" if inv.get("status") == "expired" else "pending"
@@ -320,8 +323,12 @@ async def _yk_verdict(row: sqlite3.Row) -> str:
         log.error("ЮKassa: metadata.donation_id не совпадает для %s", row["id"])
         return "pending"
     if data.get("status") == "succeeded" and data.get("paid"):
-        if (data.get("amount") or {}).get("value") != f"{row['amount']:.2f}":
+        amount = data.get("amount") or {}
+        if amount.get("value") != f"{row['amount']:.2f}":
             log.error("ЮKassa: сумма платежа не совпадает для %s", row["id"])
+            return "pending"
+        if str(amount.get("currency", "")).upper() != row["currency"].upper():
+            log.error("ЮKassa: валюта платежа не совпадает для %s", row["id"])
             return "pending"
         return "paid"
     return "canceled" if data.get("status") == "canceled" else "pending"
@@ -368,6 +375,9 @@ async def _np_verdict(row: sqlite3.Row) -> str:
     if st == "finished":
         if abs(float(data.get("price_amount", 0)) - row["amount"]) > 0.01:
             log.error("NOWPayments: price_amount не совпадает для %s", row["id"])
+            return "pending"
+        if str(data.get("price_currency", "")).lower() != row["currency"].lower():
+            log.error("NOWPayments: price_currency не совпадает для %s", row["id"])
             return "pending"
         return "paid"
     if st in ("failed", "refunded"):
