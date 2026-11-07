@@ -143,7 +143,7 @@ def test_nowpayments_refunded_is_not_recorded_as_failed(client, fake):
     journal = pay.list_transactions(status="refunded")
     assert journal["total"] == 1
     assert journal["items"][0]["refund_count"] == 1
-    assert journal["items"][0]["refunded_amount"] == 0
+    assert journal["items"][0]["refunded_amount"] is None
 
 
 def test_yookassa_forged_webhook_does_not_credit(client, fake):
