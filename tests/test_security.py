@@ -54,6 +54,7 @@ def test_private_pages_are_strict(client):
     assert "ws://testserver" in ov.headers["content-security-policy"] and ov.headers["referrer-policy"] == "no-referrer"
     adm = client.get("/admin", auth=AUTH)
     assert "yookassa" not in adm.headers["content-security-policy"] and adm.headers["cache-control"] == "no-store"
+    assert re.search(r"\sstyle\s*=", adm.text, re.IGNORECASE) is None
     assert client.get("/api/public-config").headers["cache-control"] == "no-store"
 
 
