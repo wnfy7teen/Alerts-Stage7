@@ -81,7 +81,7 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     ctx.close()
 
 
-@pytest.mark.parametrize("animation", ["bounce", "slide", "zoom", "fade", "shake", "flip"])
+@pytest.mark.parametrize("animation", ["bounce", "slide", "zoom", "fade", "shake", "flip"])  # all admin animation modes
 def test_overlay_plays_configured_alert_animation(page, base_url, admin_api, animation):
     cfg = admin_api.get("/api/admin/config").json()
     cfg["tts_enabled"] = False
