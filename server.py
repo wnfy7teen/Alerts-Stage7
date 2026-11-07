@@ -316,20 +316,48 @@ hook_limiter = pay.RateLimiter(limit=120, window=60)
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
     path, ip = request.url.path, sec.client_ip(request)
+
+    def reject(detail: str, status: int) -> JSONResponse:
+        response = JSONResponse({"detail": detail}, status_code=status)
+        sec.apply_common_headers(response, request, path)
+        return response
+
     if sec.FORCE_HTTPS and pay.PUBLIC_URL.startswith("https://") and sec.forwarded_proto(request) == "http" and path != "/api/health":
-        target = pay.PUBLIC_URL + path + ("?" + request.url.query if request.url.query else "")  # адрес из настроек, не из Host
+        target = pay.PUBLIC_URL + path + ("?" + request.url.query if request.url.query else "")
         return RedirectResponse(target, status_code=308)
+
     limit = 21 * 1024 * 1024 if path == "/api/admin/upload" else 1024 * 1024
     cl = request.headers.get("content-length", "")
     if cl.isdigit() and int(cl) > limit:
-        return JSONResponse({"detail": "Слишком большой запрос"}, status_code=413)
+        return reject("Слишком большой запрос", 413)
     if path.startswith("/api/webhooks") or path == "/crypto-webhook":
         if not hook_limiter.allow(ip):
-            return JSONResponse({"detail": "Слишком часто"}, status_code=429)
+            return reject("Слишком часто", 429)
     elif path.startswith("/api/") and not api_limiter.allow(ip):
-        return JSONResponse({"detail": "Слишком много запросов"}, status_code=429)
+        return reject("Слишком много запросов", 429)
     if (path == "/admin" or path.startswith("/api/admin")) and sec.ADMIN_ALLOWED and not sec.ip_in(ip, sec.ADMIN_ALLOWED):
-        return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return reject("Not Found", 404)
+
+    # Content-Length можно опустить и отправить тело чанками. Читаем поток с жёстким лимитом,
+    # затем передаём тот же буфер обработчику FastAPI.
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > limit:
+                return reject("Слишком большой запрос", 413)
+            body.extend(chunk)
+        buffered_body = bytes(body)
+        replayed = False
+
+        async def replay_receive():
+            nonlocal replayed
+            if replayed:
+                return {"type": "http.disconnect"}
+            replayed = True
+            return {"type": "http.request", "body": buffered_body, "more_body": False}
+
+        request._receive = replay_receive
+
     response = await call_next(request)
     sec.apply_common_headers(response, request, path)
     return response
