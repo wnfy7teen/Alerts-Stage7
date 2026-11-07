@@ -33,6 +33,7 @@ def fake(monkeypatch):
 
     async def capture(alert):
         f.alerts.append(alert)
+        return True
 
     monkeypatch.setattr(server, "broadcast", capture)
     monkeypatch.setattr(server, "donate_limiter", pay.RateLimiter(5, 600))
