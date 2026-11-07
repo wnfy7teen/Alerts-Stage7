@@ -535,8 +535,10 @@ async def refresh(row: sqlite3.Row) -> str:
     checkers = {"yookassa": _yk_verdict, "nowpayments": _np_verdict, "cryptopay": _cp_verdict}
     try:
         verdict = await checkers[row["provider"]](row)
-    except (PaymentError, httpx.HTTPError, KeyError, ValueError) as e:
-        log.warning("Не удалось проверить %s/%s: %s", row["provider"], row["id"], e)
+    except (PaymentError, httpx.HTTPError, KeyError, ValueError, TypeError, AttributeError) as e:
+        # Ответ провайдера может быть корректным JSON, но иметь неожиданную структуру.
+        # Не даём одному повреждённому ответу прервать опрос остальных платежей и outbox.
+        log.warning("Не удалось проверить %s/%s: %s", row["provider"], row["id"], type(e).__name__)
         return row["status"]
     if verdict == "paid":
         await mark_paid(row["id"])

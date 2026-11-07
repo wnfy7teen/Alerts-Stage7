@@ -319,6 +319,18 @@ def test_legacy_schema_migration(tmp_path, monkeypatch):
     assert row["donor_name"] == "Аня" and row["status"] == "paid" and row["currency"] == "RUB"
 
 
+def test_refresh_ignores_malformed_provider_response(client, monkeypatch):
+    donation_id = donate(client).json()["donation_id"]
+    row = pay.get_row(donation_id)
+
+    async def malformed(_row):
+        raise AttributeError("provider returned a list instead of an object")
+
+    monkeypatch.setattr(pay, "_yk_verdict", malformed)
+    assert asyncio.run(pay.refresh(row)) == "pending"
+    assert pay.get_row(donation_id)["status"] == "pending"
+
+
 def test_health(client):
     assert client.get("/api/health").json()["status"] == "ok"
 
