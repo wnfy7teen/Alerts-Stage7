@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import os
 import sqlite3
 from contextlib import closing
 
@@ -335,6 +336,26 @@ def test_paid_handler_skips_alert_generation_when_overlay_is_offline(monkeypatch
     monkeypatch.setattr(server, "make_alert", unexpected_alert)
     row = {"donor_name": "Test", "message": "Test", "amount": 100, "currency": "RUB", "id": "a" * 32}
     assert asyncio.run(server.on_paid(row)) is False
+
+
+
+def test_prune_tts_files_removes_only_expired_mp3(tmp_path, monkeypatch):
+    import server
+
+    monkeypatch.setattr(server, "TTS_DIR", tmp_path)
+    old_audio = tmp_path / "old.mp3"
+    recent_audio = tmp_path / "recent.mp3"
+    unrelated_file = tmp_path / "keep.wav"
+    for path in (old_audio, recent_audio, unrelated_file):
+        path.write_bytes(b"test")
+    os.utime(old_audio, (100, 100))
+    os.utime(recent_audio, (900, 900))
+    monkeypatch.setattr(server.time, "time", lambda: 1000)
+
+    assert server.prune_tts_files(max_age_seconds=300) == 1
+    assert not old_audio.exists()
+    assert recent_audio.exists()
+    assert unrelated_file.exists()
 
 
 def test_admin_replay_reports_offline_overlay(client, monkeypatch):
