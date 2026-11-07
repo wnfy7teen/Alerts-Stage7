@@ -358,6 +358,38 @@ def test_health(client):
     assert client.get("/api/health").json()["status"] == "ok"
 
 
+def test_admin_transaction_journal_filters_and_paginates(client, fake):
+    donate(client, key="a" * 24, name="Alpha")
+    donate(client, key="b" * 24, name="Beta")
+    with closing(pay.db()) as db:
+        db.execute("UPDATE donations SET status='paid' WHERE donor_name='Alpha'")
+        db.commit()
+
+    first = client.get("/api/admin/transactions?page=1&limit=1", auth=("admin", "pw-test-1234567"))
+    second = client.get("/api/admin/transactions?page=2&limit=1", auth=("admin", "pw-test-1234567"))
+    filtered = client.get(
+        "/api/admin/transactions?status=paid&q=Alpha",
+        auth=("admin", "pw-test-1234567"),
+    )
+
+    assert first.status_code == 200
+    assert first.json()["total"] == 2
+    assert len(first.json()["items"]) == 1
+    assert second.json()["items"][0]["donor_name"] != first.json()["items"][0]["donor_name"]
+    assert filtered.json()["total"] == 1
+    assert filtered.json()["items"][0]["donor_name"] == "Alpha"
+
+
+def test_admin_transaction_csv_neutralizes_spreadsheet_formulas(client, fake):
+    donate(client, key="c" * 24, name='=HYPERLINK("https://example.com","click")')
+    response = client.get("/api/admin/transactions.csv", auth=("admin", "pw-test-1234567"))
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.text.startswith("\\ufeff")
+    assert "'=HYPERLINK" in response.text
+
+
 
 
 def test_paid_handler_skips_alert_generation_when_overlay_is_offline(monkeypatch):
