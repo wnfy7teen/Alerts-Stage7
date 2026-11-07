@@ -449,7 +449,7 @@ def test_admin_transaction_csv_neutralizes_spreadsheet_formulas(client, fake):
 
 
 def test_admin_analytics_reports_gross_refunds_net_and_top_donors(client, fake):
-    alpha = donate(client, key="a" * 24, name="Alpha").json()["donation_id"]
+    donate(client, key="a" * 24, name="Alpha")
     beta = donate(client, "nowpayments", key="b" * 24, name="Beta").json()["donation_id"]
     gamma = donate(client, "cryptopay", key="g" * 24, name="Gamma").json()["donation_id"]
     created = pay.time.time() - 3600
