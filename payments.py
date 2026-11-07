@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS donations(
     id TEXT PRIMARY KEY,
     amount REAL NOT NULL,
     currency TEXT NOT NULL,
-    status TEXT NOT NULL,              -- created | pending | paid | canceled | failed | expired
+    status TEXT NOT NULL,              -- created | pending | paid | partially_refunded | refunded | canceled | failed | expired
     donor_name TEXT NOT NULL,
     message TEXT NOT NULL,
     provider TEXT NOT NULL,            -- yookassa | nowpayments | cryptopay
@@ -171,6 +171,19 @@ CREATE TABLE IF NOT EXISTS donations(
 CREATE UNIQUE INDEX IF NOT EXISTS ux_donations_provider_txn
     ON donations(provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_donations_status ON donations(status, created_at);
+CREATE TABLE IF NOT EXISTS refunds(
+    id TEXT PRIMARY KEY,
+    donation_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_refund_id TEXT NOT NULL,
+    amount REAL,
+    currency TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    UNIQUE(provider, provider_refund_id),
+    FOREIGN KEY(donation_id) REFERENCES donations(id)
+);
+CREATE INDEX IF NOT EXISTS ix_refunds_donation ON refunds(donation_id, status);
 CREATE TABLE IF NOT EXISTS alert_outbox(
     donation_id TEXT PRIMARY KEY,
     created_at REAL NOT NULL,
@@ -229,6 +242,67 @@ def find_by_txn(provider: str, txn: str) -> sqlite3.Row | None:
         return c.execute(
             "SELECT * FROM donations WHERE provider=? AND provider_txn_id=?", (provider, txn)
         ).fetchone()
+
+
+def record_refund(
+    *,
+    donation_id: str,
+    provider: str,
+    provider_refund_id: str,
+    amount: float | None,
+    currency: str,
+) -> bool:
+    """Сохраняет подтверждённый провайдером возврат идемпотентно."""
+    if not provider_refund_id or len(provider_refund_id) > 200:
+        return False
+    refund_value: float | None = None
+    if amount is not None:
+        try:
+            value = Decimal(str(amount))
+            if not value.is_finite() or value <= 0:
+                return False
+            refund_value = float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        except (InvalidOperation, TypeError, ValueError):
+            return False
+
+    with closing(db()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute("SELECT * FROM donations WHERE id=?", (donation_id,)).fetchone()
+        if not row or row["provider"] != provider or row["currency"].upper() != currency.upper():
+            c.rollback()
+            return False
+        if row["status"] not in ("created", "pending", "paid", "partially_refunded", "refunded"):
+            c.rollback()
+            return False
+        exists = c.execute(
+            "SELECT 1 FROM refunds WHERE provider=? AND provider_refund_id=?",
+            (provider, provider_refund_id),
+        ).fetchone()
+        if exists:
+            c.rollback()
+            return False
+        refunded_before = Decimal(str(c.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM refunds WHERE donation_id=? AND status='succeeded'",
+            (donation_id,),
+        ).fetchone()[0]))
+        if refund_value is not None:
+            new_total = refunded_before + Decimal(str(refund_value))
+            original = Decimal(str(row["amount"]))
+            if new_total - original > Decimal("0.01"):
+                log.error("Возврат превышает сумму доната %s", donation_id)
+                c.rollback()
+                return False
+            new_status = "refunded" if new_total >= original - Decimal("0.01") else "partially_refunded"
+        else:
+            new_status = "refunded"
+        c.execute(
+            "INSERT INTO refunds(id,donation_id,provider,provider_refund_id,amount,currency,status,created_at) "
+            "VALUES(?,?,?,?,?,?, 'succeeded', ?)",
+            (uuid.uuid4().hex, donation_id, provider, provider_refund_id, refund_value, currency, time.time()),
+        )
+        c.execute("UPDATE donations SET status=? WHERE id=?", (new_status, donation_id))
+        c.commit()
+    return True
 
 
 def recent(limit: int = 30) -> list[dict]:
