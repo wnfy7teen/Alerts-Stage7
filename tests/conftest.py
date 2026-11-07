@@ -30,6 +30,8 @@ def fake(monkeypatch):
 
     f = Fake()
     monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(f.handler))
+    # The fake broadcaster represents an available overlay in payment tests.
+    monkeypatch.setattr(server, "clients", {object()})
 
     async def capture(alert):
         f.alerts.append(alert)
