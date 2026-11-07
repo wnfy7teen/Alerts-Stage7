@@ -655,7 +655,9 @@ async def replay(donation_id: str):
     row = pay.get_row(donation_id)
     if not row or row["status"] != "paid":
         raise HTTPException(404, "Оплаченный донат не найден")
-    await broadcast(await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"]))
+    delivered = await broadcast(await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"]))
+    if not delivered:
+        raise HTTPException(409, "Оверлей не подключён — откройте OBS и повторите отправку")
     return {"ok": True}
 
 
