@@ -19,6 +19,7 @@ import re
 import sqlite3
 import time
 import uuid
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib.parse import urlsplit
 from collections import defaultdict, deque
 from contextlib import closing
@@ -81,6 +82,21 @@ class PaymentError(Exception):
 # ───────────────────────── валидация ─────────────────────────
 def _num(x: float) -> str:
     return f"{x:.2f}".rstrip("0").rstrip(".")
+
+def _amount_matches(actual, expected) -> bool:
+    """Сравнивает фиатные суммы с точностью до копейки без допуска в один цент."""
+    try:
+        actual_value = Decimal(str(actual))
+        expected_value = Decimal(str(expected))
+        if not actual_value.is_finite() or not expected_value.is_finite():
+            return False
+        cent = Decimal("0.01")
+        return actual_value.quantize(cent, rounding=ROUND_HALF_UP) == expected_value.quantize(
+            cent, rounding=ROUND_HALF_UP
+        )
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
 
 
 def validate_amount(value, min_amount: float, max_amount: float, symbol: str = "₽") -> float:
@@ -319,7 +335,7 @@ async def _cp_verdict(row: sqlite3.Row) -> str:
     if not inv:
         return "pending"
     if inv.get("status") == "paid":
-        if abs(float(inv.get("amount", 0)) - row["amount"]) > 0.01:
+        if not _amount_matches(inv.get("amount"), row["amount"]):
             log.error("Crypto Pay: сумма счёта не совпадает с донатом %s", row["id"])
             return "pending"
         if str(inv.get("fiat", "")).upper() != row["currency"].upper():
@@ -413,7 +429,7 @@ async def _np_verdict(row: sqlite3.Row) -> str:
         return "pending"
     st = data.get("payment_status")
     if st == "finished":
-        if abs(float(data.get("price_amount", 0)) - row["amount"]) > 0.01:
+        if not _amount_matches(data.get("price_amount"), row["amount"]):
             log.error("NOWPayments: price_amount не совпадает для %s", row["id"])
             return "pending"
         if str(data.get("price_currency", "")).lower() != row["currency"].lower():

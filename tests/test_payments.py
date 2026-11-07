@@ -115,6 +115,31 @@ def test_yookassa_amount_mismatch_is_not_credited(client, fake):
     assert fake.alerts == []
 
 
+
+def test_nowpayments_one_cent_amount_mismatch_is_not_credited(client, fake):
+    donate(client, "nowpayments")
+    fake.np_status, fake.np_price = "finished", "299.99"
+    asyncio.run(pay.poll_once(0))
+    assert fake.alerts == []
+
+
+def test_cryptopay_one_cent_amount_mismatch_is_not_credited(client, fake):
+    donate(client, "cryptopay")
+    fake.cp_status, fake.cp_amount = "paid", "299.99"
+    raw = json.dumps({"update_type": "invoice_paid", "payload": {"invoice_id": 555}}).encode()
+    good = hmac.new(hashlib.sha256(b"cp-token").digest(), raw, hashlib.sha256).hexdigest()
+    client.post("/api/webhooks/cryptopay", content=raw, headers={"crypto-pay-api-signature": good})
+    assert fake.alerts == []
+
+
+def test_amount_matches_uses_cent_precision():
+    assert pay._amount_matches("300.004", 300)
+    assert pay._amount_matches("300.00", 300)
+    assert not pay._amount_matches("299.99", 300)
+    assert not pay._amount_matches("invalid", 300)
+    assert not pay._amount_matches("NaN", 300)
+
+
 def test_yookassa_currency_mismatch_is_not_credited(client, fake):
     donate(client)
     fake.yk_status, fake.yk_currency = "succeeded", "USD"
