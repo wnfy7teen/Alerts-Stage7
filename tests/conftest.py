@@ -33,6 +33,7 @@ def fake(monkeypatch):
 
     async def capture(alert):
         f.alerts.append(alert)
+        return True
 
     monkeypatch.setattr(server, "broadcast", capture)
     monkeypatch.setattr(server, "donate_limiter", pay.RateLimiter(5, 600))
@@ -47,6 +48,7 @@ def client(fake):
     with TestClient(server.app) as c:
         server.load_cfg().tts_enabled = False  # без обращения к серверам озвучки
         with closing(pay.db()) as db:
+            db.execute("DELETE FROM alert_outbox")
             db.execute("DELETE FROM donations")
             db.commit()
         yield c

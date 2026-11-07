@@ -160,12 +160,15 @@ def load_cfg() -> Config:
 clients: set[WebSocket] = set()
 
 
-async def broadcast(alert: dict) -> None:
+async def broadcast(alert: dict) -> bool:
+    delivered = False
     for ws in list(clients):
         try:
             await ws.send_json(alert)
+            delivered = True
         except Exception:
             clients.discard(ws)
+    return delivered
 
 
 def num_text(amount: float) -> str:
@@ -213,7 +216,7 @@ async def synth(text: str, cfg: Config) -> str:
     return f"/media/tts/{name}"
 
 
-async def make_alert(name: str, message: str, amount: float, fiat: str) -> dict:
+async def make_alert(name: str, message: str, amount: float, fiat: str, alert_id: str | None = None) -> dict:
     cfg = load_cfg()
     tier = pick_tier(cfg, amount)
     amt = amount_text(amount, fiat)
@@ -229,7 +232,7 @@ async def make_alert(name: str, message: str, amount: float, fiat: str) -> dict:
             log.warning("Не удалось сгенерировать озвучку (%s) — оверлей попробует голос браузера", type(e).__name__)
 
     return {
-        "id": uuid.uuid4().hex,
+        "id": alert_id or uuid.uuid4().hex,
         "title": fill(cfg.title_template, name=name, amount=amt),
         "message": message,
         "image": f"/media/{tier.image}" if tier.image else "",
@@ -247,9 +250,10 @@ async def make_alert(name: str, message: str, amount: float, fiat: str) -> dict:
     }
 
 
-async def on_paid(row) -> None:
-    """Вызывается ровно один раз, когда платёж подтверждён провайдером."""
-    await broadcast(await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"]))
+async def on_paid(row) -> bool:
+    """Отправляет алерт с постоянным ID, чтобы повторную доставку можно было дедуплицировать."""
+    alert = await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"], row["id"])
+    return await broadcast(alert)
 
 
 async def poller() -> None:

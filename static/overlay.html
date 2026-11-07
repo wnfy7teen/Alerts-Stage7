@@ -74,6 +74,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let reconnectDelay = 1000;
 let reconnectTimer = null;
+const seenAlertIds = new Set();
+const seenAlertOrder = [];
+
+function rememberAlert(id) {
+  if (!id) return true;
+  if (seenAlertIds.has(id)) return false;
+  seenAlertIds.add(id);
+  seenAlertOrder.push(id);
+  if (seenAlertOrder.length > 500) seenAlertIds.delete(seenAlertOrder.shift());
+  return true;
+}
 
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -87,6 +98,7 @@ function connect() {
     try {
       const alert = JSON.parse(e.data);
       if (!alert || typeof alert !== "object" || Array.isArray(alert)) return;
+      if (!rememberAlert(alert.id)) return;
       queue.push(alert);
       next();
     } catch (_) {

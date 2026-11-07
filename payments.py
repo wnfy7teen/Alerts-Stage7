@@ -155,6 +155,18 @@ CREATE TABLE IF NOT EXISTS donations(
 CREATE UNIQUE INDEX IF NOT EXISTS ux_donations_provider_txn
     ON donations(provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_donations_status ON donations(status, created_at);
+CREATE TABLE IF NOT EXISTS alert_outbox(
+    donation_id TEXT PRIMARY KEY,
+    created_at REAL NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at REAL NOT NULL DEFAULT 0,
+    claimed_until REAL,
+    delivered_at REAL,
+    last_error TEXT,
+    FOREIGN KEY(donation_id) REFERENCES donations(id)
+);
+CREATE INDEX IF NOT EXISTS ix_alert_outbox_pending
+    ON alert_outbox(delivered_at, next_attempt_at, claimed_until);
 """
 
 
@@ -391,28 +403,85 @@ def np_signature(payload: dict, secret: str) -> str:
 
 
 # ───────────────────────── применение статуса ─────────────────────────
-_paid_handler: Callable[[sqlite3.Row], Awaitable[None]] | None = None
+_paid_handler: Callable[[sqlite3.Row], Awaitable[bool]] | None = None
 
 
-def set_paid_handler(fn: Callable[[sqlite3.Row], Awaitable[None]]) -> None:
+def set_paid_handler(fn: Callable[[sqlite3.Row], Awaitable[bool]]) -> None:
     global _paid_handler
     _paid_handler = fn
 
 
 async def mark_paid(donation_id: str) -> bool:
-    """True, если именно этот вызов перевёл донат в paid (значит, алерт нужно показать)."""
+    """Переводит донат в paid и атомарно ставит алерт в устойчивую очередь."""
+    now = time.time()
     with closing(db()) as c:
         cur = c.execute("UPDATE donations SET status='paid', paid_at=? WHERE id=? AND status!='paid'",
-                        (time.time(), donation_id))
-        c.commit()
+                        (now, donation_id))
         first = cur.rowcount == 1
         row = c.execute("SELECT * FROM donations WHERE id=?", (donation_id,)).fetchone()
-    if first and _paid_handler and row:
-        try:
-            await _paid_handler(row)
-        except Exception:
-            log.error("Донат %s оплачен, но алерт не отправился (можно повторить в админке)", donation_id, exc_info=False)
+        if first and row:
+            c.execute(
+                "INSERT OR IGNORE INTO alert_outbox(donation_id,created_at,next_attempt_at) VALUES(?,?,?)",
+                (donation_id, now, now),
+            )
+        c.commit()
+    if first:
+        await dispatch_pending_alerts()
     return first
+
+
+async def dispatch_pending_alerts(limit: int = 50) -> int:
+    """Доставляет подтверждённые алерты с lease и повтором при отсутствии оверлея."""
+    if _paid_handler is None:
+        return 0
+    now = time.time()
+    claimed: list[tuple[sqlite3.Row, int]] = []
+    with closing(db()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        rows = c.execute(
+            "SELECT donation_id, attempts FROM alert_outbox WHERE delivered_at IS NULL "
+            "AND next_attempt_at<=? AND (claimed_until IS NULL OR claimed_until<?) "
+            "ORDER BY created_at LIMIT ?", (now, now, limit),
+        ).fetchall()
+        for item in rows:
+            cur = c.execute(
+                "UPDATE alert_outbox SET claimed_until=?, attempts=attempts+1 "
+                "WHERE donation_id=? AND delivered_at IS NULL "
+                "AND (claimed_until IS NULL OR claimed_until<?) AND next_attempt_at<=?",
+                (now + 60, item["donation_id"], now, now),
+            )
+            if cur.rowcount:
+                donation = c.execute("SELECT * FROM donations WHERE id=?", (item["donation_id"],)).fetchone()
+                if donation:
+                    claimed.append((donation, int(item["attempts"]) + 1))
+        c.commit()
+
+    delivered_count = 0
+    for donation, attempts in claimed:
+        error = "no_overlay_clients"
+        try:
+            delivered = await _paid_handler(donation)
+            if delivered:
+                with closing(db()) as c:
+                    c.execute(
+                        "UPDATE alert_outbox SET delivered_at=?, claimed_until=NULL, last_error=NULL "
+                        "WHERE donation_id=? AND delivered_at IS NULL", (time.time(), donation["id"]),
+                    )
+                    c.commit()
+                delivered_count += 1
+                continue
+        except Exception as exc:
+            error = "handler_error"
+            log.error("Не удалось доставить алерт доната %s: %s", donation["id"], type(exc).__name__)
+        delay = min(300, 5 * (2 ** min(attempts - 1, 6)))
+        with closing(db()) as c:
+            c.execute(
+                "UPDATE alert_outbox SET claimed_until=NULL, next_attempt_at=?, last_error=? "
+                "WHERE donation_id=? AND delivered_at IS NULL",
+                (time.time() + delay, error, donation["id"]),
+            )
+            c.commit()
+    return delivered_count
 
 
 async def refresh(row: sqlite3.Row) -> str:
@@ -446,6 +515,7 @@ async def poll_once(tick: int = 0) -> None:
         if now - row["created_at"] > 1200 and tick % 12:  # старше 20 минут — раз в минуту
             continue
         await refresh(row)
+    await dispatch_pending_alerts()
 
 
 # ───────────────────────── создание доната ─────────────────────────
