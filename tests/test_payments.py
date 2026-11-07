@@ -177,6 +177,34 @@ def test_poller_credits_without_webhook(client, fake):
     assert len(fake.alerts) == 1
 
 
+def test_prune_delivered_alerts_preserves_pending_and_respects_batch(client, fake):
+    first = donate(client, key="prune-first").json()["donation_id"]
+    second = donate(client, key="prune-second").json()["donation_id"]
+    third = donate(client, key="prune-third").json()["donation_id"]
+    now = pay.time.time()
+    with closing(pay.db()) as db:
+        db.executemany(
+            "INSERT INTO alert_outbox(donation_id,created_at,attempts,next_attempt_at,delivered_at) "
+            "VALUES(?,?,?,?,?)",
+            [
+                (first, now - 100000, 1, now, now - 90000),
+                (second, now - 100000, 1, now, now - 80000),
+                (third, now - 100000, 1, now, None),
+            ],
+        )
+        db.commit()
+
+    assert pay.prune_delivered_alerts(retention_seconds=3600, limit=1) == 1
+    with closing(pay.db()) as db:
+        rows = db.execute(
+            "SELECT donation_id, delivered_at FROM alert_outbox ORDER BY donation_id"
+        ).fetchall()
+    remaining = {row["donation_id"]: row["delivered_at"] for row in rows}
+    assert first not in remaining
+    assert second in remaining and remaining[second] is not None
+    assert third in remaining and remaining[third] is None
+
+
 def test_outbox_survives_restart_and_recovers_expired_lease(client, fake):
     donation_id = donate(client).json()["donation_id"]
     now = pay.time.time()
