@@ -177,6 +177,37 @@ def test_poller_credits_without_webhook(client, fake):
     assert len(fake.alerts) == 1
 
 
+def test_paid_alert_waits_for_overlay_and_retries(client, fake, monkeypatch):
+    import server
+
+    donation_id = donate(client).json()["donation_id"]
+    fake.yk_status = "succeeded"
+
+    async def offline(_alert):
+        return False
+
+    monkeypatch.setattr(server, "broadcast", offline)
+    hook = {"event": "payment.succeeded", "object": {"id": "yk-1"}}
+    assert client.post("/api/webhooks/yookassa", json=hook).status_code == 200
+    with closing(pay.db()) as db:
+        pending = db.execute("SELECT * FROM alert_outbox WHERE donation_id=?", (donation_id,)).fetchone()
+        assert pending["delivered_at"] is None and pending["attempts"] == 1
+        db.execute("UPDATE alert_outbox SET next_attempt_at=0 WHERE donation_id=?", (donation_id,))
+        db.commit()
+
+    async def online(alert):
+        fake.alerts.append(alert)
+        return True
+
+    monkeypatch.setattr(server, "broadcast", online)
+    assert asyncio.run(pay.dispatch_pending_alerts()) == 1
+    with closing(pay.db()) as db:
+        delivered = db.execute("SELECT * FROM alert_outbox WHERE donation_id=?", (donation_id,)).fetchone()
+        assert delivered["delivered_at"] is not None and delivered["last_error"] is None
+    assert fake.alerts[0]["id"] == donation_id
+    assert asyncio.run(pay.dispatch_pending_alerts()) == 0
+
+
 # ───── БД ─────
 def test_unique_provider_txn_index(client):
     donate(client, "nowpayments")
