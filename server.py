@@ -728,7 +728,7 @@ def transactions_csv(status: str = "", provider: str = "", q: str = ""):
 @app.post("/api/admin/replay/{donation_id}", dependencies=ADMIN)
 async def replay(donation_id: str):
     row = pay.get_row(donation_id)
-    if not row or row["status"] != "paid":
+    if not row or row["status"] not in ("paid", "partially_refunded"):
         raise HTTPException(404, "Оплаченный донат не найден")
     delivered = await broadcast(await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"]))
     if not delivered:
