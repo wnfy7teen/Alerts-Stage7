@@ -271,7 +271,7 @@ def test_shared_brand_theme_is_available_and_allowed_by_csp(client):
     assert theme.status_code == 200
     assert "color-scheme: dark" in theme.text
     assert "--bg: #080B12" in theme.text
-    assert "--accent: #A5B4FC" in theme.text
+    assert "--accent: #E9A8C3" in theme.text
     assert "--glow-violet:" in theme.text
 
     for path, auth in [("/", None), ("/admin", AUTH), ("/thanks", None), ("/overlay", None)]:
