@@ -311,7 +311,8 @@ def test_admin_replay_reports_offline_overlay(client, monkeypatch):
 
     monkeypatch.setattr(server, "broadcast", offline)
     response = client.post(
-        f"/api/admin/replay/{donation_id}", auth=("admin", "pw-test-1234567")
+        f"/api/admin/replay/{donation_id}",
+        auth=("admin", "pw-test-1234567"), headers={"X-Requested-With": "donation-admin"}
     )
     assert response.status_code == 409
     assert "Оверлей не подключён" in response.json()["detail"]
