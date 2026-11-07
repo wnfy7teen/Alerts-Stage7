@@ -20,11 +20,15 @@ class Page(HTMLParser):
         super().__init__()
         self.h = []
         self.meta, self.links, self.ld, self.text = {}, {}, [], []
-        self._tag, self._ld = None, False
+        self.summary = []
+        self._tag, self._ld, self._summary = None, False, False
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
         self._tag = tag
+        if tag == "summary":
+            self.summary.append("")
+            self._summary = True
         if tag == "meta":
             self.meta[a.get("property") or a.get("name")] = a.get("content")
         elif tag == "link":
@@ -36,6 +40,8 @@ class Page(HTMLParser):
 
     def handle_endtag(self, tag):
         self._tag = None
+        if tag == "summary":
+            self._summary = False
         if tag == "script":
             self._ld = False
 
@@ -46,6 +52,8 @@ class Page(HTMLParser):
             self.h[-1][1] += data
         elif self._tag == "title":
             self.meta["title"] = data
+        if self._summary:
+            self.summary[-1] += data
         self.text.append(data)
 
 
@@ -66,7 +74,7 @@ def test_html_is_complete_without_javascript(page):
     assert "{{" not in r.text, "в страницу попали неподставленные значения"
     assert "vanesso4ka — стример на Twitch" in body                      # сущность описана в первом абзаце
     assert "Карта или СБП" in body and "Криптовалюта" in body              # способы оплаты видны роботу
-    assert "Минимум 50 ₽" in body and "Вопросы и ответы" in body
+    assert "Минимум 50 ₽" in body and "Частые вопросы" in body
 
 
 def test_title_description_canonical(page):
@@ -82,7 +90,7 @@ def test_exactly_one_h1_and_ordered_headings(page):
     levels = [h[0] for h in p.h]
     assert levels.count("h1") == 1 and levels[0] == "h1"
     assert p.h[0][1] == "Поддержать vanesso4ka"
-    assert "h2" in levels and "h3" in levels and levels.index("h2") < levels.index("h3")
+    assert "h2" in levels and "h3" not in levels
 
 
 def test_open_graph_and_twitter_card(page):
@@ -104,7 +112,7 @@ def test_json_ld_matches_visible_content(page):
     assert person["potentialAction"]["@type"] == "DonateAction"
     assert person["sameAs"] == ["https://www.twitch.tv/vanesso4ka"]           # только https-ссылки
     faq = next(n for n in graph if n["@type"] == "FAQPage")
-    visible = [h[1] for h in p.h if h[0] == "h3"]
+    visible = [q.strip() for q in p.summary]
     assert [q["name"] for q in faq["mainEntity"]] == visible                  # разметка совпадает с тем, что видит человек
 
 
