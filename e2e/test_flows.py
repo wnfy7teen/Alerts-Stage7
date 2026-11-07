@@ -75,6 +75,9 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     page.goto(base_url + "/admin")
     expect(page.get_by_role("heading", level=1)).to_have_text("Донаты и оповещения")
     expect(page.locator("#overlayLink")).to_contain_text("/overlay?key=")
+    # The first-visit onboarding modal intentionally blocks the page until dismissed.
+    if page.locator("#onboarding").is_visible():
+        page.get_by_role("button", name="Понятно, начать работу").click()
     page.get_by_role("button", name="Отправить тестовый алерт").click()
     expect(page.locator("#testStatus")).to_contain_text("Оверлей не подключён")
     assert problems == []
