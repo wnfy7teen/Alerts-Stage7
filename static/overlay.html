@@ -163,6 +163,85 @@ function speak(text, volume, rate) {  // запасной вариант, есл
   });
 }
 
+const ALERT_ANIMATIONS = {
+  bounce: {
+    duration: 800, easing: "cubic-bezier(.3, 1.6, .5, 1)",
+    frames: [{ transform: "translateY(-160%) scale(.8)", opacity: 0 }, { transform: "translateY(0) scale(1)", opacity: 1 }]
+  },
+  slide: {
+    duration: 600, easing: "cubic-bezier(.2, .9, .3, 1)",
+    frames: [{ transform: "translateX(-140%)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }]
+  },
+  zoom: {
+    duration: 500, easing: "cubic-bezier(.2, 1.4, .4, 1)",
+    frames: [{ transform: "scale(0)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }]
+  },
+  fade: {
+    duration: 700, easing: "ease",
+    frames: [{ opacity: 0 }, { opacity: 1 }]
+  },
+  shake: {
+    duration: 900, easing: "ease",
+    frames: [
+      { transform: "translateX(0)", opacity: 0, offset: 0 },
+      { transform: "translateX(0)", opacity: 1, offset: .2 },
+      { transform: "translateX(-14px) rotate(-1deg)", opacity: 1, offset: .36 },
+      { transform: "translateX(14px) rotate(1deg)", opacity: 1, offset: .52 },
+      { transform: "translateX(-9px)", opacity: 1, offset: .68 },
+      { transform: "translateX(9px)", opacity: 1, offset: .84 },
+      { transform: "translateX(0)", opacity: 1, offset: 1 }
+    ]
+  },
+  flip: {
+    duration: 700, easing: "ease",
+    frames: [{ transform: "perspective(800px) rotateX(90deg)", opacity: 0 },
+             { transform: "perspective(800px) rotateX(0)", opacity: 1 }]
+  }
+};
+
+function playEntranceAnimation(requestedName) {
+  const name = Object.prototype.hasOwnProperty.call(ALERT_ANIMATIONS, requestedName) ? requestedName : "bounce";
+  card.dataset.animation = name;
+  card.getAnimations().forEach(animation => animation.cancel());
+  card.className = "visible";
+
+  const preset = ALERT_ANIMATIONS[name];
+  if (typeof card.animate === "function") {
+    try {
+      const animation = card.animate(preset.frames, {
+        duration: preset.duration, easing: preset.easing, fill: "both"
+      });
+      return animation.finished.catch(() => {});
+    } catch (error) {
+      console.warn("Web Animations API недоступен, используется CSS fallback:", error);
+    }
+  }
+
+  // Резервный путь для старых Chromium в OBS.
+  void card.offsetWidth;
+  card.classList.add("in-" + name);
+  return Promise.resolve();
+}
+
+async function playExitAnimation() {
+  card.getAnimations().forEach(animation => animation.cancel());
+  if (typeof card.animate === "function") {
+    try {
+      const animation = card.animate(
+        [{ transform: "translateY(0) scale(1)", opacity: 1 },
+         { transform: "translateY(-30px) scale(.92)", opacity: 0 }],
+        { duration: 500, easing: "ease", fill: "forwards" }
+      );
+      await animation.finished.catch(() => {});
+      return;
+    } catch (error) {
+      console.warn("Не удалось запустить exit-анимацию:", error);
+    }
+  }
+  card.className = "out";
+  await sleep(550);
+}
+
 async function show(a) {
   const accent = safeHex(a.color);
   const textColor = "#FFFFFF";
@@ -182,9 +261,7 @@ async function show(a) {
   }
 
   const started = Date.now();
-  card.className = "visible";
-  void card.offsetWidth;  // перезапуск анимации
-  card.className = "visible in-" + a.animation;
+  const entrance = playEntranceAnimation(a.animation);
 
   (a.sound ? playAudio(a.sound, a.sound_volume, 8000) : chime(a.sound_volume)).then(async () => {
     if (a.tts_url) await playAudio(a.tts_url, a.tts_volume, 40000);
@@ -192,12 +269,13 @@ async function show(a) {
   }).then(() => { a._audioDone = true; });
 
   // ждём минимальное время показа и окончания озвучки
-  await sleep(a.duration * 1000);
+  await sleep(Math.max(2, Math.min(60, Number(a.duration) || 8)) * 1000);
   while (!a._audioDone && Date.now() - started < 60000) await sleep(200);
+  await entrance;
 
-  card.className = "out";
-  await sleep(550);
+  await playExitAnimation();
   card.className = "";
+  delete card.dataset.animation;
   vid.pause();
 }
 
