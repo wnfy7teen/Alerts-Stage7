@@ -1,5 +1,6 @@
 import re
 
+import pytest
 from playwright.sync_api import expect
 
 DID = "a" * 32
@@ -38,7 +39,7 @@ def test_crypto_payment_stays_on_site_and_shows_thanks(page, base_url):
         json={"id": DID, "status": status["value"], "amount": 300, "currency": "RUB", "provider": "nowpayments"}))
     problems = collect_problems(page)
     page.goto(base_url + "/")
-    page.get_by_text("Криптовалюта", exact=True).click()
+    page.get_by_role("radio", name=re.compile("Криптовалюта")).check(force=True)
     page.get_by_role("button", name=re.compile(r"Поддержать на")).click()
     expect(page.get_by_text(ADDRESS)).to_be_visible()
     expect(page.get_by_alt_text("QR-код адреса для оплаты")).to_be_visible()
@@ -72,15 +73,27 @@ def test_admin_page_and_test_alert(browser, base_url, admin_api):
     page = ctx.new_page()
     problems = collect_problems(page)
     page.goto(base_url + "/admin")
-    expect(page.get_by_role("heading", level=1)).to_have_text("Донат-алерты")
+    expect(page.get_by_role("heading", level=1)).to_have_text("Донаты и оповещения")
     expect(page.locator("#overlayLink")).to_contain_text("/overlay?key=")
+    # The first-visit onboarding modal intentionally blocks the page until dismissed.
+    if page.locator("#onboarding").is_visible():
+        page.get_by_role("button", name="Понятно, начать работу").click()
     page.get_by_role("button", name="Отправить тестовый алерт").click()
     expect(page.locator("#testStatus")).to_contain_text("Оверлей не подключён")
     assert problems == []
     ctx.close()
 
 
-def test_overlay_shows_alert(page, base_url, admin_api):
+@pytest.mark.parametrize("animation", ["bounce", "slide", "zoom", "fade", "shake", "flip"])  # all admin animation modes
+def test_overlay_plays_configured_alert_animation(page, base_url, admin_api, animation):
+    cfg = admin_api.get("/api/admin/config").json()
+    cfg["tts_enabled"] = False
+    cfg["tiers"] = [{
+        "min_amount": 0, "animation": animation, "duration": 8, "color": "#0593C6",
+        "tts": False, "image": "", "sound": ""
+    }]
+    assert admin_api.put("/api/admin/config", data=cfg).ok
+
     problems = collect_problems(page)
     page.goto(f"{base_url}/overlay?key=e2e-overlay-key-0123456789")
     for _ in range(40):  # ждём, пока оверлей подключится по WebSocket
@@ -88,10 +101,15 @@ def test_overlay_shows_alert(page, base_url, admin_api):
         if sent["overlays_connected"]:
             break
         page.wait_for_timeout(250)
+
     assert sent["overlays_connected"] == 1
     expect(page.locator("#card")).to_be_visible(timeout=10_000)
     expect(page.locator("#title")).to_contain_text("Вася")
     expect(page.locator("#msg")).to_have_text("Привет, стрим!")
+    expect(page.locator("#card")).to_have_attribute("data-animation", animation)
+    page.wait_for_function(
+        "() => { const card = document.querySelector('#card'); return card && card.getAnimations().length > 0; }"
+    )
     assert problems == []
 
 
@@ -101,7 +119,7 @@ def test_page_is_readable_without_javascript(browser, base_url):
     page = ctx.new_page()
     page.goto(base_url + "/")
     expect(page.get_by_role("heading", level=1)).to_contain_text("Поддержать")
-    expect(page.get_by_text("Вопросы и ответы")).to_be_visible()
+    expect(page.get_by_role("region", name="Частые вопросы")).to_be_visible()
     expect(page.get_by_text("Карта или СБП", exact=True)).to_be_visible()
     assert page.locator('link[rel="canonical"]').get_attribute("href").endswith("/")
     assert page.locator('meta[property="og:image"]').get_attribute("content").endswith("/og-cover.png")
