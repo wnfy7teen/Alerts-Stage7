@@ -290,6 +290,7 @@ def test_donation_page_uses_short_payment_heading(client):
 def test_donation_amount_field_hides_native_number_spinner(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "-webkit-appearance:none;appearance:textfield;-moz-appearance:textfield" in response.text
-    assert "::-webkit-inner-spin-button" in response.text
-    assert "::-webkit-outer-spin-button" in response.text
+    assert '<input id="amount" type="text" inputmode="decimal"' in response.text
+    assert ".amount input{" in response.text
+    assert "background:transparent!important" in response.text
+    assert "border:0!important" in response.text
