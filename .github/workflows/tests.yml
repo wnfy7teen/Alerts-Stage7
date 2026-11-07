@@ -62,14 +62,28 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             "deploy@$DEPLOY_HOST"
-      - name: Verify public donation page
+      - name: Verify public donation page on both domains
         run: |
           set -euo pipefail
-          URL="https://www.vanesso4ka.site/?deploy_check=${GITHUB_SHA}"
-          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 \
-            -H "Cache-Control: no-cache" \
-            "$URL" -o /tmp/donation-page.html
-          grep -Fq 'Krisofer Biksan' /tmp/donation-page.html
-          grep -Fq 'usdtuser1@gmail.com' /tmp/donation-page.html
-          grep -Fq 'https://t.me/web3ResearchCN' /tmp/donation-page.html
-          echo "Public donation page serves the expected developer footer."
+          for HOST in vanesso4ka.site www.vanesso4ka.site; do
+            URL="https://${HOST}/?deploy_check=${GITHUB_SHA}"
+            OUT="/tmp/donation-page-${HOST}.html"
+            echo "Checking ${URL}"
+            curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 \
+              -H "Cache-Control: no-cache, no-store" \
+              -H "Pragma: no-cache" \
+              "${URL}" -o "${OUT}"
+            for EXPECTED in \
+              'DESIGNED &amp; DEVELOPED BY' \
+              'Krisofer Biksan' \
+              'Web Developer · Technical Support' \
+              'mailto:usdtuser1@gmail.com' \
+              'https://t.me/web3ResearchCN' \
+              '© 2026 Kristofer Biksan. All rights reserved.'; do
+              if ! grep -Fq "${EXPECTED}" "${OUT}"; then
+                echo "::error::${HOST} does not serve expected footer content: ${EXPECTED}"
+                exit 1
+              fi
+            done
+            echo "${HOST}: expected developer footer verified."
+          done
