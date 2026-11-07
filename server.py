@@ -636,6 +636,11 @@ async def send_test(t: TestIn):
     return {"ok": True, "overlays_connected": len(clients)}
 
 
+@app.get("/api/admin/delivery", dependencies=ADMIN)
+def delivery_status():
+    return pay.alert_delivery_stats()
+
+
 @app.get("/api/admin/history", dependencies=ADMIN)
 def history():
     return [
