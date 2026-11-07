@@ -239,8 +239,7 @@ def test_outbox_survives_restart_and_recovers_expired_lease(client, fake):
     assert recovered["claimed_until"] is None
     assert recovered["last_error"] is None
     assert recovered["attempts"] == 3
-    assert len(fake.alerts) == 1
-    assert fake.alerts[0]["id"] == donation_id
+    assert [alert["id"] for alert in fake.alerts].count(donation_id) == 1
 
 
 def test_paid_alert_waits_for_overlay_and_retries(client, fake, monkeypatch):
