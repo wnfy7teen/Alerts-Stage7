@@ -417,13 +417,25 @@ def thanks(req: Request):
 
 
 csp_limiter = pay.RateLimiter(limit=30, window=60)
+WEBHOOK_BODY_LIMIT = 64 * 1024
+CSP_REPORT_BODY_LIMIT = 8 * 1024
+
+
+async def read_limited_body(req: Request, limit: int) -> bytes:
+    """Читает тело потоково и прекращает чтение при превышении лимита."""
+    body = bytearray()
+    async for chunk in req.stream():
+        if len(body) + len(chunk) > limit:
+            raise HTTPException(413, "Слишком большой запрос")
+        body.extend(chunk)
+    return bytes(body)
 
 
 @app.post("/api/csp-report", status_code=204)
 async def csp_report(req: Request):
     """Сюда браузер присылает нарушения CSP: помогает отладить политику на реальной странице оплаты."""
     if csp_limiter.allow(sec.client_ip(req)):
-        text = (await req.body())[:1500].decode("utf-8", "replace")
+        text = (await read_limited_body(req, CSP_REPORT_BODY_LIMIT))[:1500].decode("utf-8", "replace")
         log.warning("CSP: %s", re.sub(r"[\r\n\t]+", " ", text))
     return Response(status_code=204)
 
@@ -489,7 +501,7 @@ def payment_status(donation_id: str, req: Request):
 @app.post("/api/webhooks/yookassa")
 async def webhook_yookassa(req: Request):
     try:
-        body = await req.json()
+        body = json.loads(await read_limited_body(req, WEBHOOK_BODY_LIMIT))
     except ValueError:
         raise HTTPException(400, "bad request") from None
     try:
@@ -502,7 +514,9 @@ async def webhook_yookassa(req: Request):
 @app.post("/api/webhooks/nowpayments")
 async def webhook_nowpayments(req: Request):
     try:
-        await pay.handle_nowpayments_webhook(await req.body(), req.headers.get("x-nowpayments-sig", ""))
+        await pay.handle_nowpayments_webhook(
+            await read_limited_body(req, WEBHOOK_BODY_LIMIT), req.headers.get("x-nowpayments-sig", "")
+        )
     except pay.PaymentError as e:
         raise _err(e) from None
     return {"ok": True}
@@ -512,7 +526,9 @@ async def webhook_nowpayments(req: Request):
 @app.post("/crypto-webhook")  # прежний адрес оставлен, чтобы не перенастраивать Crypto Pay
 async def webhook_cryptopay(req: Request):
     try:
-        await pay.handle_cryptopay_webhook(await req.body(), req.headers.get("crypto-pay-api-signature", ""))
+        await pay.handle_cryptopay_webhook(
+            await read_limited_body(req, WEBHOOK_BODY_LIMIT), req.headers.get("crypto-pay-api-signature", "")
+        )
     except pay.PaymentError as e:
         raise _err(e) from None
     return {"ok": True}
