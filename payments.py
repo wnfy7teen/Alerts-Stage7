@@ -545,7 +545,9 @@ async def _np_verdict(row: sqlite3.Row) -> str:
             log.error("NOWPayments: price_currency не совпадает для %s", row["id"])
             return "pending"
         return "paid"
-    if st in ("failed", "refunded"):
+    if st == "refunded":
+        return "refunded"
+    if st == "failed":
         return "failed"
     return "expired" if st == "expired" else "pending"  # partially_paid и прочее ждут
 
@@ -568,8 +570,11 @@ async def mark_paid(donation_id: str) -> bool:
     """Переводит донат в paid и атомарно ставит алерт в устойчивую очередь."""
     now = time.time()
     with closing(db()) as c:
-        cur = c.execute("UPDATE donations SET status='paid', paid_at=? WHERE id=? AND status!='paid'",
-                        (now, donation_id))
+        cur = c.execute(
+            "UPDATE donations SET status='paid', paid_at=? WHERE id=? "
+            "AND status NOT IN ('paid','partially_refunded','refunded')",
+            (now, donation_id),
+        )
         first = cur.rowcount == 1
         row = c.execute("SELECT * FROM donations WHERE id=?", (donation_id,)).fetchone()
         if first and row:
@@ -651,6 +656,12 @@ async def refresh(row: sqlite3.Row) -> str:
         return row["status"]
     if verdict == "paid":
         await mark_paid(row["id"])
+    elif verdict == "refunded":
+        record_refund(
+            donation_id=row["id"], provider="nowpayments",
+            provider_refund_id=f"np-refund-{row['provider_txn_id']}",
+            amount=None, currency=row["currency"],
+        )
     elif verdict in ("canceled", "failed", "expired"):
         with closing(db()) as c:
             c.execute("UPDATE donations SET status=? WHERE id=? AND status IN ('created','pending')",
