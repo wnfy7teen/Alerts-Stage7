@@ -26,6 +26,9 @@ TRUST_PROXY_HEADERS = _env("TRUST_PROXY_HEADERS", "0") == "1"
 FORCE_HTTPS = _env("FORCE_HTTPS", "0") == "1"
 CSP_REPORT_ONLY = _env("CSP_REPORT_ONLY", "0") == "1"
 ADMIN_ALLOWED = [x.strip() for x in _env("ADMIN_ALLOWED_CIDRS").split(",") if x.strip()]
+TRUSTED_PROXY_CIDRS = [
+    x.strip() for x in _env("TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128").split(",") if x.strip()
+]
 TURNSTILE_SITE_KEY = _env("TURNSTILE_SITE_KEY")
 TURNSTILE_SECRET = _env("TURNSTILE_SECRET_KEY")
 CSRF_HEADER = "donation-admin"
@@ -39,10 +42,29 @@ def _valid_ip(value: str) -> str | None:
         return None
 
 
+def ip_in(ip: str, cidrs: list[str]) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    for cidr in cidrs:
+        try:
+            if addr in ipaddress.ip_network(cidr, strict=False):
+                return True
+        except ValueError:
+            log.warning("Некорректная доверенная подсеть прокси")
+    return False
+
+
+def _trusted_proxy(req: Request) -> bool:
+    peer = req.client.host if req.client else ""
+    return bool(TRUST_PROXY_HEADERS and ip_in(peer, TRUSTED_PROXY_CIDRS))
+
+
 def client_ip(req: Request) -> str:
-    """За доверенным прокси берём адрес из его заголовка. Для X-Forwarded-For это ПОСЛЕДНЯЯ запись:
-    её дописал наш прокси, а всё левее клиент мог подделать."""
-    if TRUST_PROXY_HEADERS:
+    """Учитывает proxy-заголовки только если TCP-соединение пришло из доверенной подсети."""
+    peer = req.client.host if req.client else "?"
+    if _trusted_proxy(req):
         ip = _valid_ip(req.headers.get("cf-connecting-ip", ""))
         if ip:
             return ip
@@ -51,19 +73,11 @@ def client_ip(req: Request) -> str:
             ip = _valid_ip(xff.split(",")[-1])
             if ip:
                 return ip
-    return req.client.host if req.client else "?"
-
-
-def ip_in(ip: str, cidrs: list[str]) -> bool:
-    try:
-        addr = ipaddress.ip_address(ip)
-        return any(addr in ipaddress.ip_network(c, strict=False) for c in cidrs)
-    except ValueError:
-        return False
+    return peer
 
 
 def forwarded_proto(req: Request) -> str:
-    if TRUST_PROXY_HEADERS:
+    if _trusted_proxy(req):
         return req.headers.get("x-forwarded-proto", "").split(",")[-1].strip().lower() or req.url.scheme
     return req.url.scheme
 
@@ -160,14 +174,20 @@ def apply_common_headers(resp, req: Request, path: str) -> None:
 
 # ───────────────────────── CSRF ─────────────────────────
 def check_origin(req: Request) -> None:
-    """Запрос с чужого сайта отклоняется. Браузер сам ставит Origin / Sec-Fetch-Site, подделать их из страницы нельзя."""
+    """Сверяет scheme и host Origin с публичным origin и origin текущего запроса."""
     origin = req.headers.get("origin")
     if origin:
-        host = urlsplit(origin).netloc
-        allowed = {req.headers.get("host", "")}
+        parsed = urlsplit(origin)
+        if parsed.scheme.lower() not in ("http", "https") or not parsed.netloc:
+            raise HTTPException(403, "Запрос с чужого сайта отклонён")
+        allowed = set()
         if pay.PUBLIC_URL:
-            allowed.add(urlsplit(pay.PUBLIC_URL).netloc)
-        if host not in allowed:
+            public = urlsplit(pay.PUBLIC_URL)
+            allowed.add((public.scheme.lower(), public.netloc.lower()))
+        request_host = req.headers.get("host", "").lower()
+        if request_host:
+            allowed.add((forwarded_proto(req), request_host))
+        if (parsed.scheme.lower(), parsed.netloc.lower()) not in allowed:
             raise HTTPException(403, "Запрос с чужого сайта отклонён")
     elif req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
         raise HTTPException(403, "Запрос с чужого сайта отклонён")
@@ -230,9 +250,11 @@ def scrub_sentry_event(event: dict, hint=None) -> dict:
     req = event.get("request")
     if req:
         event["request"] = {"method": req.get("method"), "url": str(req.get("url", "")).split("?")[0]}
-    for key in ("user", "server_name", "breadcrumbs", "extra", "contexts"):
+    for key in ("user", "server_name", "breadcrumbs", "extra", "contexts", "message", "logentry", "tags", "fingerprint"):
         event.pop(key, None)
     for ex in (event.get("exception") or {}).get("values") or []:
+        if "value" in ex:
+            ex["value"] = "[redacted]"
         for frame in (ex.get("stacktrace") or {}).get("frames") or []:
             frame.pop("vars", None)
     return event
