@@ -294,3 +294,5 @@ def test_donation_amount_field_hides_native_number_spinner(client):
     assert ".amount input{" in response.text
     assert "background:transparent!important" in response.text
     assert "border:0!important" in response.text
+    assert "font-size:clamp(36px,9vw,48px)" in response.text
+    assert "line-height:1.1" in response.text
