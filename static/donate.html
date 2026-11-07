@@ -78,6 +78,8 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
   textarea{min-height:96px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* Keep the payment-pending indicator visibly animated: it communicates an active status. */
+@media(prefers-reduced-motion:reduce){.spin{animation:spin 1s linear infinite!important}}
 </style>
 </head>
 <body>
