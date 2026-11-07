@@ -183,6 +183,36 @@
     *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
   }
 
+
+
+  /* High-contrast readable interface */
+
+  body { background: #080B12; color: #F8FAFC; }
+  main > h1 { color: #FFFFFF; background: none; -webkit-text-fill-color: #FFFFFF; letter-spacing: -.02em; }
+  section { background: #111827; border: 1px solid #40516B; border-radius: 15px; box-shadow: 0 10px 28px rgba(0,0,0,.28); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  section h2 { color: #FFFFFF; font-size: 18px; }
+  label, .muted { color: #D5DEEA; }
+  input, select, textarea { background: #090F1B; color: #FFFFFF; border: 1px solid #53647D; }
+  input::placeholder, textarea::placeholder { color: #AAB7C9; opacity: 1; }
+  input[readonly] { color: #DCE3FF; background: #17233A; }
+  input:focus, select:focus, textarea:focus { border-color: #B9C5FF; outline: 3px solid rgba(185,197,255,.2); box-shadow: none; }
+  button { background: #1A2639; color: #F8FAFC; border: 1px solid #53647D; }
+  button:hover:not(:disabled) { background: #263A5B; border-color: #A5B4FC; transform: none; }
+  button.primary { background: #7188F0; color: #FFFFFF; border: 1px solid #AAB8FF; box-shadow: none; }
+  button.primary:hover:not(:disabled) { background: #8297FA; box-shadow: none; }
+  #overlayLink, code { background: #090F1B; color: #DCE3FF; border: 1px solid #53647D; }
+  .tier { background: #0D1523; border: 1px solid #53647D; }
+  .tier-head { color: #FFFFFF; }
+  .delivery-stat { background: #172235; border: 1px solid #53647D; }
+  .delivery-stat strong { color: #FFFFFF; }
+  th { color: #DCE3FF; }
+  td, th { border-bottom: 1px solid #3B4A61; }
+  tbody tr:hover { background: #1A2940; }
+  #deliveryErrors { color: #FF9AA2; }
+  #status, #testStatus { color: #DCE3FF; }
+  .bar { background: #111827; border-top: 1px solid #53647D; box-shadow: 0 -8px 24px rgba(0,0,0,.3); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #B9C5FF; outline-offset: 3px; }
+
 </style>
 </head>
 <body>
