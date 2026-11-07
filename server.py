@@ -595,7 +595,7 @@ def put_config(cfg: Config):
 
 @app.get("/api/admin/links", dependencies=ADMIN)
 def links():
-    return {"overlay": f"http://localhost:{PORT}/overlay?key={OVERLAY_KEY}"}
+    return {"overlay": f"{pay.PUBLIC_URL}/overlay?key={OVERLAY_KEY}"}
 
 
 @app.get("/api/admin/media", dependencies=ADMIN)

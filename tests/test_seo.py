@@ -201,3 +201,11 @@ def test_no_payment_state_leaks_into_seo_pages(client, fake):
     did = donate(client).json()["donation_id"]
     assert did not in client.get("/sitemap.xml").text + client.get("/llms.txt").text + client.get("/robots.txt").text
     assert pay.get_row(did)
+
+
+
+def test_admin_obs_link_uses_public_url(client):
+    r = client.get("/api/admin/links", auth=("admin", "pw-test-1234567"))
+    assert r.status_code == 200
+    assert r.json()["overlay"] == "https://example.test/overlay?key=overlay-key-test-0123456789"
+    assert "localhost" not in r.json()["overlay"]
