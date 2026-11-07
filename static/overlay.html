@@ -72,11 +72,38 @@ let busy = false;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+let reconnectDelay = 1000;
+let reconnectTimer = null;
+
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws?key=${encodeURIComponent(KEY)}`);
-  ws.onmessage = e => { queue.push(JSON.parse(e.data)); next(); };
-  ws.onclose = () => setTimeout(connect, 3000);
+
+  ws.onopen = () => {
+    reconnectDelay = 1000;
+  };
+
+  ws.onmessage = e => {
+    try {
+      const alert = JSON.parse(e.data);
+      if (!alert || typeof alert !== "object" || Array.isArray(alert)) return;
+      queue.push(alert);
+      next();
+    } catch (_) {
+      console.warn("Получено некорректное сообщение WebSocket");
+    }
+  };
+
+  ws.onclose = () => {
+    if (reconnectTimer !== null) return;
+    const jitter = Math.random() * Math.min(1000, reconnectDelay * 0.2);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, reconnectDelay + jitter);
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+  };
+
   ws.onerror = () => ws.close();
 }
 
