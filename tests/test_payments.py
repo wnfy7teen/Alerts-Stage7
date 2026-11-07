@@ -339,6 +339,28 @@ def test_paid_handler_skips_alert_generation_when_overlay_is_offline(monkeypatch
 
 
 
+def test_prune_tts_files_bounds_scan_work(tmp_path, monkeypatch):
+    import server
+
+    files = []
+    for index in range(6):
+        path = tmp_path / f"recent-{index}.mp3"
+        path.write_bytes(b"test")
+        os.utime(path, (900, 900))
+        files.append(path)
+    old_audio = tmp_path / "old.mp3"
+    old_audio.write_bytes(b"test")
+    os.utime(old_audio, (100, 100))
+    files.append(old_audio)
+
+    monkeypatch.setattr(server, "TTS_DIR", tmp_path)
+    monkeypatch.setattr(server.time, "time", lambda: 1000)
+    monkeypatch.setattr(server.Path, "glob", lambda self, pattern: iter(files))
+
+    assert server.prune_tts_files(max_age_seconds=300, scan_limit=5) == 0
+    assert old_audio.exists()
+
+
 def test_prune_tts_files_removes_only_expired_mp3(tmp_path, monkeypatch):
     import server
 
