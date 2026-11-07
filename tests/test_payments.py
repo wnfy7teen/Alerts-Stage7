@@ -122,6 +122,8 @@ def test_yookassa_partial_refund_webhook_is_verified_and_idempotent(client, fake
     refund_hook = {"event": "refund.succeeded", "object": {"id": "rf-1"}}
     assert client.post("/api/webhooks/yookassa", json=refund_hook).status_code == 200
     assert client.post("/api/webhooks/yookassa", json=refund_hook).status_code == 200
+    assert client.post("/api/webhooks/yookassa", json=payment_hook).status_code == 200
+    assert len(fake.alerts) == 1
 
     row = pay.get_row(did)
     assert row["status"] == "partially_refunded"
