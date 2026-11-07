@@ -567,8 +567,11 @@ def prune_delivered_alerts(retention_seconds: int = 30 * 86400, limit: int = 500
 async def poll_once(tick: int = 0) -> None:
     now = time.time()
     with closing(db()) as c:
-        c.execute("UPDATE donations SET status='expired' WHERE status IN ('created','pending') AND created_at<?",
-                  (now - PENDING_TTL,))
+        # Не переводим платежи с provider_txn_id в expired только по локальному таймеру:
+        # провайдер остаётся источником истины, а позднее подтверждение должно быть найдено.
+        # Локальный TTL применяем лишь к незавершённым записям, для которых счёт не был создан.
+        c.execute("UPDATE donations SET status='expired' WHERE status='created' "
+                  "AND provider_txn_id IS NULL AND created_at<?", (now - PENDING_TTL,))
         c.commit()
         rows = c.execute("SELECT * FROM donations WHERE status='pending' AND provider_txn_id IS NOT NULL").fetchall()
     for row in rows:
