@@ -177,6 +177,41 @@ def test_poller_credits_without_webhook(client, fake):
     assert len(fake.alerts) == 1
 
 
+def test_outbox_survives_restart_and_recovers_expired_lease(client, fake):
+    donation_id = donate(client).json()["donation_id"]
+    now = pay.time.time()
+    with closing(pay.db()) as db:
+        db.execute(
+            "INSERT INTO alert_outbox(donation_id,created_at,attempts,next_attempt_at,claimed_until,last_error) "
+            "VALUES(?,?,?,?,?,?)",
+            (donation_id, now - 180, 2, now - 1, now - 1, "handler_error"),
+        )
+        db.commit()
+
+    # Startup initialization must not discard pending durable delivery records.
+    pay.init_db()
+    with closing(pay.db()) as db:
+        persisted = db.execute(
+            "SELECT * FROM alert_outbox WHERE donation_id=?", (donation_id,)
+        ).fetchone()
+    assert persisted is not None
+    assert persisted["delivered_at"] is None
+    assert persisted["attempts"] == 2
+
+    # The next poll after a process restart can reclaim an expired lease.
+    asyncio.run(pay.poll_once(0))
+    with closing(pay.db()) as db:
+        recovered = db.execute(
+            "SELECT * FROM alert_outbox WHERE donation_id=?", (donation_id,)
+        ).fetchone()
+    assert recovered["delivered_at"] is not None
+    assert recovered["claimed_until"] is None
+    assert recovered["last_error"] is None
+    assert recovered["attempts"] == 3
+    assert len(fake.alerts) == 1
+    assert fake.alerts[0]["id"] == donation_id
+
+
 def test_paid_alert_waits_for_overlay_and_retries(client, fake, monkeypatch):
     import server
 
