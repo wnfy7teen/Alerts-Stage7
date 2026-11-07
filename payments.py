@@ -259,7 +259,7 @@ def list_transactions(*, limit: int = 50, offset: int = 0, status: str = "", pro
     page_offset = max(0, int(offset))
     with closing(db()) as c:
         count_sql = "SELECT COUNT(*) FROM donations" + where  # noqa: S608 - where contains only fixed SQL clauses
-        rows_sql = (
+        rows_sql = (  # noqa: S608 - where contains only fixed SQL clauses
             "SELECT id, amount, currency, status, donor_name, message, provider, provider_txn_id, "
             "created_at, paid_at FROM donations"
             + where  # noqa: S608 - where contains only fixed SQL clauses
