@@ -23,6 +23,10 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt -r requirements-e2e.txt
       - name: Lint
         run: ruff check .
+      - name: Validate operations scripts
+        run: |
+          bash -n scripts/remote_backup.sh scripts/healthcheck.sh
+          python -m py_compile scripts/restore_drill.py
       - name: Install Playwright browser
         run: python -m playwright install --with-deps chromium
       - name: Unit and browser tests
