@@ -35,7 +35,17 @@ def verify_archive(path: Path) -> dict:
                 name = Path(member.name)
                 if name.is_absolute() or ".." in name.parts or not (member.isfile() or member.isdir()):
                     raise RuntimeError("backup_archive_unsafe_member")
-            archive.extractall(root, filter="data")
+            for member in members:
+                destination = root / member.name
+                if member.isdir():
+                    destination.mkdir(parents=True, exist_ok=True)
+                else:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    source = archive.extractfile(member)
+                    if source is None:
+                        raise RuntimeError("backup_archive_member_unreadable")
+                    with source, destination.open("wb") as output:
+                        shutil.copyfileobj(source, output)
         manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
         for relative, expected in manifest["sha256"].items():
             file = root / relative
