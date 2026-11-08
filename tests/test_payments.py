@@ -560,3 +560,29 @@ def test_admin_replay_reports_offline_overlay(client, monkeypatch):
     )
     assert response.status_code == 409
     assert "Оверлей не подключён" in response.json()["detail"]
+
+
+def test_admin_audit_is_protected_and_records_safe_actions(client):
+    auth = ("admin", "pw-test-1234567")
+    config = client.get("/api/admin/config", auth=auth).json()
+    config["min_amount"] = 51
+    updated = client.put("/api/admin/config", json=config, auth=auth, headers={"X-Requested-With": "donation-admin"})
+    assert updated.status_code == 200
+
+    sent = client.post(
+        "/api/admin/test",
+        json={"name": "Private test name", "message": "Do not persist this message", "amount": 100},
+        auth=auth,
+        headers={"X-Requested-With": "donation-admin"},
+    )
+    assert sent.status_code == 200
+
+    response = client.get("/api/admin/audit?page=1&limit=20", auth=auth)
+    assert response.status_code == 200
+    data = response.json()
+    actions = [item["action"] for item in data["items"]]
+    assert "config.updated" in actions
+    assert "test_alert.sent" in actions
+    assert all(item["actor"] == "admin" for item in data["items"])
+    assert "Do not persist this message" not in response.text
+    assert client.get("/api/admin/audit").status_code == 401

@@ -171,7 +171,10 @@
           <a href="#test-settings" data-label="проверить тест уведомление">Проверить оповещение</a>
           <a href="#overlay-settings" data-label="ссылка obs браузер">Подключение OBS</a>
         </div>
-        <div class="nav-group"><p class="nav-group-title">Отчёты</p><a href="#analytics-settings" data-label="статистика доходы донатеры">Статистика доходов</a></div>
+        <div class="nav-group"><p class="nav-group-title">Отчёты</p>
+          <a href="#analytics-settings" data-label="статистика доходы донатеры">Статистика доходов</a>
+          <a href="#audit-settings" data-label="журнал действий администратор аудит история изменений">Журнал действий</a>
+        </div>
         <div class="nav-group"><p class="nav-group-title">Сайт и обслуживание</p><a href="#monitoring-settings" data-label="состояние сайта мониторинг">Состояние сайта</a></div>
       </nav>
       <p class="nav-no-results" id="navNoResults" hidden>Ничего не найдено. Попробуйте другое слово.</p>
@@ -302,6 +305,13 @@
     </div>
     <p class="muted nomargin">Возвраты учитываются по дате подтверждения. Если провайдер не передаёт сумму полного возврата, для расчёта используется исходная сумма доната. График за период «Всё время» показывает последние 365 дней.</p>
   </section>
+  <section id="audit-settings">
+    <h2>Журнал действий администратора</h2>
+    <p class="muted flush">Фиксируются изменения настроек, загрузки файлов, тестовые оповещения и повторная отправка алертов. Секреты и тексты донатов в журнал не записываются.</p>
+    <div class="table-wrap"><table><thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody id="auditRows"><tr><td colspan="5" class="muted">Загрузка…</td></tr></tbody></table></div>
+    <div class="history-footer"><span id="auditCount" class="muted" aria-live="polite">Загрузка…</span><div class="history-pager"><button type="button" id="auditPrev">Назад</button><span id="auditPage" class="muted">1 / 1</span><button type="button" id="auditNext">Далее</button></div></div>
+    <p id="auditUpdated" class="monitor-note" role="status" aria-live="polite"></p>
+  </section>
   <section id="monitoring-settings">
     <h2>Состояние сайта</h2>
     <div class="monitor-toolbar">
@@ -370,6 +380,7 @@ const NAV_HELP = {
   "test-settings":"Отправьте тестовое уведомление, чтобы проверить оформление и звук.",
   "overlay-settings":"Скопируйте ссылку и добавьте её в OBS как источник «Браузер».",
   "analytics-settings":"Посмотрите поступления, возвраты и доход за выбранный период.",
+  "audit-settings":"Посмотрите, какие административные действия выполнялись в панели.",
   "monitoring-settings":"Проверьте базу данных, платежи, OBS и другие важные компоненты."
 };
 function updateNavigation(){
@@ -709,6 +720,36 @@ $("analyticsPeriod").addEventListener("change", loadAnalytics);
 $("analyticsCurrency").addEventListener("change", loadAnalytics);
 $("analyticsRefresh").addEventListener("click", loadAnalytics);
 
+let auditPage = 1;
+const AUDIT_LIMIT = 50;
+const AUDIT_LABELS = {
+  "config.updated": "Изменены настройки",
+  "media.uploaded": "Загружен файл",
+  "test_alert.sent": "Отправлен тестовый алерт",
+  "alert.replayed": "Повторён алерт"
+};
+async function loadAudit() {
+  try {
+    const result = await api("/api/admin/audit?" + new URLSearchParams({page:String(auditPage),limit:String(AUDIT_LIMIT)}));
+    const pages = Math.max(1, Math.ceil(result.total / AUDIT_LIMIT));
+    $("auditRows").innerHTML = result.items.map(item => {
+      const details = Object.entries(item.details || {}).map(([key, value]) => key + ": " + String(value)).join(" · ");
+      return `<tr><td>${new Date(item.created_at * 1000).toLocaleString("ru-RU")}</td>
+        <td>${esc(item.actor)}</td><td>${esc(AUDIT_LABELS[item.action] || item.action)}</td>
+        <td>${esc(item.target || "—")}</td><td>${esc(details || "—")}</td></tr>`;
+    }).join("") || `<tr><td colspan="5" class="empty-state">Административных действий пока нет.</td></tr>`;
+    $("auditCount").textContent = "Записей: " + result.total.toLocaleString("ru-RU");
+    $("auditPage").textContent = auditPage + " / " + pages;
+    $("auditPrev").disabled = auditPage <= 1;
+    $("auditNext").disabled = auditPage >= pages;
+    $("auditUpdated").textContent = "Обновлено: " + new Date().toLocaleTimeString("ru-RU");
+  } catch (err) {
+    $("auditUpdated").textContent = "Не удалось загрузить журнал: " + err.message;
+  }
+}
+$("auditPrev").addEventListener("click", () => { auditPage = Math.max(1, auditPage - 1); loadAudit(); });
+$("auditNext").addEventListener("click", () => { auditPage += 1; loadAudit(); });
+
 function transactionFilters() {
   return { status: $("txStatus").value, provider: $("txProvider").value, q: $("txSearch").value.trim() };
 }
@@ -767,10 +808,12 @@ $("hist").addEventListener("click", async e => {
   loadDelivery();
   loadAnalytics();
   loadMonitoring();
+  loadAudit();
   setInterval(loadHistory, 15000);
   setInterval(loadDelivery, 15000);
   setInterval(loadAnalytics, 60000);
   setInterval(loadMonitoring, 60000);
+  setInterval(loadAudit, 60000);
 })();
 </script>
 </body>

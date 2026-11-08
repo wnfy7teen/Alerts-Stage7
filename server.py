@@ -638,6 +638,7 @@ def get_config():
 @app.put("/api/admin/config", dependencies=ADMIN)
 def put_config(cfg: Config):
     save_cfg(cfg)
+    pay.record_admin_action("config.updated", details={"fields": sorted(cfg.model_fields_set)})
     return {"ok": True}
 
 
@@ -674,13 +675,15 @@ async def upload(file: UploadFile = File(...)):
     if too_big:
         path.unlink(missing_ok=True)
         raise HTTPException(413, "Файл больше 20 МБ")
+    pay.record_admin_action("media.uploaded", target=name, details={"size_bytes": size, "extension": ext})
     return {"name": name}
 
 
 @app.post("/api/admin/test", dependencies=ADMIN)
 async def send_test(t: TestIn):
     alert = await make_alert(t.name.strip()[:30] or "Аноним", t.message[:250], round(t.amount, 2), load_cfg().fiat)
-    await broadcast(alert)
+    delivered = await broadcast(alert)
+    pay.record_admin_action("test_alert.sent", details={"delivered": delivered, "overlay_connections": len(clients)})
     return {"ok": True, "overlays_connected": len(clients)}
 
 
@@ -919,7 +922,15 @@ async def replay(donation_id: str):
     delivered = await broadcast(await make_alert(row["donor_name"], row["message"], row["amount"], row["currency"]))
     if not delivered:
         raise HTTPException(409, "Оверлей не подключён — откройте OBS и повторите отправку")
+    pay.record_admin_action("alert.replayed", target=donation_id)
     return {"ok": True}
+
+
+@app.get("/api/admin/audit", dependencies=ADMIN)
+def admin_audit(page: int = 1, limit: int = 50):
+    page = max(1, page)
+    limit = min(100, max(1, limit))
+    return pay.list_admin_audit(limit=limit, offset=(page - 1) * limit)
 
 
 app.mount("/media", StaticFiles(directory=MEDIA), name="media")
