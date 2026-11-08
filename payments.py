@@ -193,6 +193,20 @@ CREATE TABLE IF NOT EXISTS refunds(
     FOREIGN KEY(donation_id) REFERENCES donations(id)
 );
 CREATE INDEX IF NOT EXISTS ix_refunds_donation ON refunds(donation_id, status);
+CREATE TABLE IF NOT EXISTS payment_webhook_events(
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    provider_event_id TEXT,
+    donation_id TEXT,
+    payload_sha256 TEXT NOT NULL,
+    result TEXT NOT NULL,
+    received_at REAL NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_webhook_provider_payload
+    ON payment_webhook_events(provider, payload_sha256);
+CREATE INDEX IF NOT EXISTS ix_webhook_received
+    ON payment_webhook_events(received_at DESC);
 CREATE TABLE IF NOT EXISTS alert_outbox(
     donation_id TEXT PRIMARY KEY,
     created_at REAL NOT NULL,
@@ -269,6 +283,54 @@ def find_by_txn(provider: str, txn: str) -> sqlite3.Row | None:
         return c.execute(
             "SELECT * FROM donations WHERE provider=? AND provider_txn_id=?", (provider, txn)
         ).fetchone()
+
+
+def record_webhook_event(
+    *,
+    provider: str,
+    event_type: str,
+    provider_event_id: str = "",
+    donation_id: str | None = None,
+    payload_sha256: str,
+    result: str,
+) -> bool:
+    """Persist minimal webhook metadata; never retain raw payloads or donor data."""
+    if provider not in ("yookassa", "nowpayments", "cryptopay"):
+        return False
+    if not re.fullmatch(r"[a-f0-9]{64}", payload_sha256):
+        return False
+    safe_event = re.sub(r"[^a-zA-Z0-9_.-]", "_", event_type)[:80] or "unknown"
+    safe_provider_id = str(provider_event_id)[:160]
+    safe_result = re.sub(r"[^a-zA-Z0-9_.-]", "_", result)[:40] or "received"
+    with closing(db()) as c:
+        cur = c.execute(
+            "INSERT OR IGNORE INTO payment_webhook_events"
+            "(id,provider,event_type,provider_event_id,donation_id,payload_sha256,result,received_at) "
+            "VALUES(?,?,?,?,?,?,?,?)",
+            (uuid.uuid4().hex, provider, safe_event, safe_provider_id or None,
+             donation_id, payload_sha256, safe_result, time.time()),
+        )
+        c.commit()
+        return cur.rowcount == 1
+
+
+def list_webhook_events(*, limit: int = 50, offset: int = 0, provider: str = "") -> dict:
+    page_size = min(100, max(1, int(limit)))
+    page_offset = max(0, int(offset))
+    provider_filter = provider if provider in ("yookassa", "nowpayments", "cryptopay") else ""
+    with closing(db()) as c:
+        total = c.execute(
+            "SELECT COUNT(*) FROM payment_webhook_events WHERE (?='' OR provider=?)",
+            (provider_filter, provider_filter),
+        ).fetchone()[0]
+        rows = c.execute(
+            "SELECT id,provider,event_type,provider_event_id,donation_id,payload_sha256,result,received_at "
+            "FROM payment_webhook_events WHERE (?='' OR provider=?) "
+            "ORDER BY received_at DESC,id DESC LIMIT ? OFFSET ?",
+            (provider_filter, provider_filter, page_size, page_offset),
+        ).fetchall()
+    return {"total": int(total), "limit": page_size, "offset": page_offset,
+            "items": [dict(row) for row in rows]}
 
 
 def record_refund(
@@ -1223,6 +1285,21 @@ async def handle_yookassa_webhook(body: dict, client_ip: str) -> None:
     obj = body.get("object")
     if not isinstance(obj, dict):
         return
+    event_type = str(body.get("event") or "unknown")
+    provider_event_id = str(obj.get("id") or "")
+    try:
+        payload_hash = hashlib.sha256(json.dumps(
+            body, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")).hexdigest()
+        txn_for_event = obj.get("id") if event_type.startswith("payment.") else None
+        linked_row = find_by_txn("yookassa", txn_for_event) if isinstance(txn_for_event, str) else None
+        record_webhook_event(
+            provider="yookassa", event_type=event_type, provider_event_id=provider_event_id,
+            donation_id=linked_row["id"] if linked_row else None,
+            payload_sha256=payload_hash, result="received",
+        )
+    except (TypeError, ValueError):
+        log.warning("Не удалось записать метаданные webhook ЮKassa")
     if body.get("event") == "refund.succeeded":
         refund_id = obj.get("id")
         if not isinstance(refund_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", refund_id):
@@ -1266,7 +1343,14 @@ async def handle_nowpayments_webhook(raw: bytes, signature: str) -> None:
         hmac.new(NP_IPN_SECRET.encode(), raw, hashlib.sha512).hexdigest().encode(), sig)  # на случай уже отсортированного тела
     if not ok:
         raise PaymentError("forbidden", 403)
-    row = find_by_txn("nowpayments", str(payload.get("payment_id", "")))
+    payment_id = str(payload.get("payment_id", ""))
+    row = find_by_txn("nowpayments", payment_id)
+    record_webhook_event(
+        provider="nowpayments", event_type=str(payload.get("payment_status") or "unknown"),
+        provider_event_id=payment_id, donation_id=row["id"] if row else None,
+        payload_sha256=hashlib.sha256(raw).hexdigest(),
+        result="matched" if row else "unknown_payment",
+    )
     if row:
         await refresh(row)
 
@@ -1288,6 +1372,13 @@ async def handle_cryptopay_webhook(raw: bytes, signature: str) -> None:
         payload = upd.get("payload")
         if not isinstance(payload, dict):
             raise PaymentError("bad request", 400)
-        row = find_by_txn("cryptopay", str(payload.get("invoice_id", "")))
+        invoice_id = str(payload.get("invoice_id", ""))
+        row = find_by_txn("cryptopay", invoice_id)
+        record_webhook_event(
+            provider="cryptopay", event_type=str(upd.get("update_type") or "unknown"),
+            provider_event_id=invoice_id, donation_id=row["id"] if row else None,
+            payload_sha256=hashlib.sha256(raw).hexdigest(),
+            result="matched" if row else "unknown_invoice",
+        )
         if row:
             await refresh(row)

@@ -109,6 +109,11 @@ def test_yookassa_webhook_credits_once(client, fake):
     assert client.post("/api/webhooks/yookassa", json=hook).status_code == 200
     assert len(fake.alerts) == 1 and fake.alerts[0]["title"].startswith("Вася")
     assert client.get(f"/api/payments/status/{did}").json()["status"] == "paid"
+    events = pay.list_webhook_events(provider="yookassa")
+    assert events["total"] == 1
+    assert events["items"][0]["donation_id"] == did
+    assert events["items"][0]["result"] == "received"
+    assert "payload" not in events["items"][0]
 
 
 def test_concurrent_duplicate_yookassa_webhooks_credit_once(client, fake):
@@ -339,6 +344,11 @@ def test_nowpayments_ipn_signature_and_credit(client, fake):
     for _ in range(2):
         assert client.post("/api/webhooks/nowpayments", content=raw, headers={"x-nowpayments-sig": sig}).status_code == 200
     assert len(fake.alerts) == 1
+    events = pay.list_webhook_events(provider="nowpayments")
+    assert events["total"] == 1  # одинаковая доставка хранится один раз
+    assert events["items"][0]["donation_id"] == did
+    assert events["items"][0]["result"] == "matched"
+    assert "raw" not in events["items"][0]
 
 
 def test_cryptopay_webhook_rejects_non_object_payload(client):
@@ -357,6 +367,9 @@ def test_cryptopay_webhook(client, fake):
     assert client.post("/api/webhooks/cryptopay", content=raw, headers={"crypto-pay-api-signature": "0" * 64}).status_code == 403
     assert client.post("/api/webhooks/cryptopay", content=raw, headers={"crypto-pay-api-signature": good}).status_code == 200
     assert len(fake.alerts) == 1
+    events = pay.list_webhook_events(provider="cryptopay")
+    assert events["total"] == 1
+    assert events["items"][0]["result"] == "matched"
 
 
 def test_poller_credits_without_webhook(client, fake):

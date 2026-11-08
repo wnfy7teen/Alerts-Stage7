@@ -985,6 +985,15 @@ def admin_audit(page: int = 1, limit: int = 50):
     return pay.list_admin_audit(limit=limit, offset=(page - 1) * limit)
 
 
+@app.get("/api/admin/webhook-events", dependencies=ADMIN)
+def admin_webhook_events(page: int = 1, limit: int = 50, provider: str = ""):
+    page = max(1, page)
+    limit = min(100, max(1, limit))
+    return pay.list_webhook_events(
+        limit=limit, offset=(page - 1) * limit, provider=provider
+    )
+
+
 app.mount("/media", StaticFiles(directory=MEDIA), name="media")
 
 if __name__ == "__main__":
