@@ -53,11 +53,12 @@ class Fake:
             self.cp_invoices.append(invoice)
             return httpx.Response(200, json={"ok": True, "result": invoice})
         if url.startswith("https://testnet-pay.crypt.bot/api/getInvoices"):
-            query = parse_qs(request.url.query)
+            query = parse_qs(request.url.query.decode())
             invoice_ids = set(query.get("invoice_ids", [""])[0].split(",")) - {""}
             items = self.cp_invoices
             if invoice_ids:
                 items = [item for item in items if str(item["invoice_id"]) in invoice_ids]
+            items = [{**item, "status": self.cp_status} for item in items]
             offset = int(query.get("offset", ["0"])[0])
             count = int(query.get("count", ["100"])[0])
             return httpx.Response(200, json={"ok": True, "result": {"items": items[offset:offset + count]}})
