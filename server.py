@@ -188,11 +188,19 @@ async def broadcast(alert: dict, ack_timeout: float = 8) -> bool:
             future.cancel()
     if not pending:
         return False
-    futures = [future for _, future in pending]
-    done, _ = await asyncio.wait(
-        futures, timeout=max(0, ack_timeout), return_when=asyncio.FIRST_COMPLETED
-    )
-    delivered = any(not future.cancelled() and future.result() is True for future in done)
+    remaining = {future for _, future in pending}
+    deadline = loop.time() + max(0, ack_timeout)
+    delivered = False
+    while remaining and not delivered:
+        done, remaining = await asyncio.wait(
+            remaining, timeout=max(0, deadline - loop.time()),
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        delivered = any(
+            not future.cancelled() and future.result() is True for future in done
+        )
+        if not done:
+            break
     for ws, future in pending:
         pending_alert_acks.pop((ws, alert_id), None)
         if not future.done():
