@@ -981,12 +981,14 @@ async def poll_once(tick: int = 0) -> None:
             "AND provider_txn_id IS NULL AND creation_unknown=0 AND created_at<?",
             (now - PENDING_TTL,),
         )
-        unknown_rows = c.execute(
-            "SELECT id FROM donations WHERE status='created' AND provider='cryptopay' "
-            "AND creation_unknown=1 AND (creation_checked_at IS NULL OR creation_checked_at<=?) "
-            "ORDER BY created_at LIMIT 1",
-            (now - 60,),
-        ).fetchall()
+        unknown_rows = []
+        if tick % 12 == 0:  # не чаще одного recovery scan в минуту
+            unknown_rows = c.execute(
+                "SELECT id FROM donations WHERE status='created' AND provider='cryptopay' "
+                "AND creation_unknown=1 AND (creation_checked_at IS NULL OR creation_checked_at<=?) "
+                "ORDER BY created_at LIMIT 1",
+                (now - 60,),
+            ).fetchall()
         c.commit()
         rows = c.execute("SELECT * FROM donations WHERE status='pending' AND provider_txn_id IS NOT NULL").fetchall()
     for item in unknown_rows:
