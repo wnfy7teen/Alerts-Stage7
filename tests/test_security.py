@@ -423,3 +423,12 @@ def test_donation_amount_field_hides_native_number_spinner(client):
     assert "line-height:1.1" in response.text
     assert response.text.index(".amount input#amount{") > response.text.index("input[type=text],input[type=number],textarea{")
     assert "font-family:\"Unbounded\",sans-serif;font-size:clamp(36px,9vw,48px)" in response.text
+
+
+def test_overlay_deduplicates_retried_alerts_across_reload():
+    overlay = (Path(__file__).resolve().parents[1] / "static" / "overlay.html").read_text(encoding="utf-8")
+    assert 'const ALERT_DEDUPE_STORAGE_KEY = "donation-alert-seen-v1"' in overlay
+    assert 'localStorage.getItem(ALERT_DEDUPE_STORAGE_KEY)' in overlay
+    assert 'localStorage.setItem(ALERT_DEDUPE_STORAGE_KEY, JSON.stringify(seenAlertOrder))' in overlay
+    assert "seenAlertIds.has(id)" in overlay
+    assert "slice(-500)" in overlay
