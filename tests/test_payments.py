@@ -135,6 +135,17 @@ def test_yookassa_partial_refund_webhook_is_verified_and_idempotent(client, fake
 
 
 @pytest.mark.parametrize("first_amount", [None, 300.0])
+def test_refund_amount_that_rounds_to_zero_is_rejected(client):
+    did = donate(client, key="s" * 24).json()["donation_id"]
+    assert not pay.record_refund(
+        donation_id=did, provider="yookassa", provider_refund_id="rf-subcent",
+        amount=0.004, currency="RUB",
+    )
+    assert pay.get_row(did)["status"] == "created"
+    journal = pay.list_transactions()
+    assert journal["items"][0]["refund_count"] == 0
+
+
 def test_full_refund_is_terminal_and_late_refunds_are_ignored(client, first_amount):
     did = donate(client, key="r" * 24).json()["donation_id"]
 
