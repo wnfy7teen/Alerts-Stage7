@@ -644,7 +644,7 @@ def test_cryptopay_unknown_creation_is_not_expired_by_local_ttl(client, fake, mo
         )
         db.commit()
 
-    asyncio.run(pay.poll_once(1))
+    asyncio.run(pay.poll_once(12))
     current = pay.get_row(row["id"])
     assert current["status"] == "created"
     assert current["creation_unknown"] == 1
