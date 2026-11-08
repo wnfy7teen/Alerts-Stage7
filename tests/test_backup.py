@@ -106,3 +106,45 @@ def test_restore_backup_rejects_duplicate_archive_members(tmp_path):
     assert result.returncode != 0
     assert "Duplicate archive member" in result.stderr
     assert not target.exists()
+
+
+
+def test_backup_can_defer_local_retention_until_remote_verification(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    database = data / "donations.db"
+    with sqlite3.connect(database) as db:
+        db.execute("CREATE TABLE donations(id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO donations VALUES('d1')")
+
+    backup_dir = data / "backups"
+    backup_dir.mkdir()
+    old_archives = [
+        backup_dir / "donation-alerts-20260101-000001.tar.gz",
+        backup_dir / "donation-alerts-20260102-000001.tar.gz",
+    ]
+    for index, archive in enumerate(old_archives):
+        archive.write_bytes(b"previous-known-good-backup")
+        os.utime(archive, (1_700_000_000 + index, 1_700_000_000 + index))
+
+    status = data / "backup-status.json"
+    env = os.environ.copy()
+    env.update({
+        "DB_PATH": str(database),
+        "CONFIG_PATH": str(data / "missing-config.json"),
+        "MEDIA_DIR": str(data / "missing-media"),
+        "BACKUP_STATUS_PATH": str(status),
+        "BACKUP_KEEP": "1",
+        "BACKUP_DEFER_RETENTION": "1",
+    })
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "backup.py"), str(backup_dir)],
+        check=True, env=env, capture_output=True, text=True,
+    )
+
+    # A verified new local archive must not prune old copies before remote verification.
+    assert all(archive.exists() for archive in old_archives)
+    assert len(list(backup_dir.glob("donation-alerts-*.tar.gz"))) == 3
+    state = json.loads(status.read_text(encoding="utf-8"))
+    assert state["status"] == "success"
+    assert state["retention_deferred"] is True
