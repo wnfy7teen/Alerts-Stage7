@@ -680,7 +680,7 @@ def test_cryptopay_lost_response_is_reconciled_by_poller_and_paid_once(client, f
     first = donate(client, "cryptopay", key=key)
     assert first.status_code == 502
     row = pay.get_by_idem(key)
-    fake.cp_invoices[0]["status"] = "paid"
+    fake.cp_status = "paid"
     with closing(pay.db()) as db:
         db.execute(
             "UPDATE donations SET creation_checked_at=? WHERE id=?",
