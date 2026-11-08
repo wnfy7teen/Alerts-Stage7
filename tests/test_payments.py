@@ -4,6 +4,7 @@ import hmac
 import json
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 
 import httpx
@@ -108,6 +109,42 @@ def test_yookassa_webhook_credits_once(client, fake):
     assert client.post("/api/webhooks/yookassa", json=hook).status_code == 200
     assert len(fake.alerts) == 1 and fake.alerts[0]["title"].startswith("Вася")
     assert client.get(f"/api/payments/status/{did}").json()["status"] == "paid"
+
+
+def test_concurrent_duplicate_yookassa_webhooks_credit_once(client, fake):
+    did = donate(client, key="c" * 24).json()["donation_id"]
+    fake.yk_status = "succeeded"
+    hook = {"event": "payment.succeeded", "object": {"id": "yk-1"}}
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        statuses = list(pool.map(lambda _: client.post("/api/webhooks/yookassa", json=hook).status_code, range(12)))
+
+    assert statuses == [200] * 12
+    assert pay.get_row(did)["status"] == "paid"
+    assert len(fake.alerts) == 1
+    with closing(pay.db()) as db:
+        assert db.execute("SELECT COUNT(*) FROM alert_outbox WHERE donation_id=?", (did,)).fetchone()[0] == 1
+
+
+def test_concurrent_duplicate_refund_id_is_recorded_once(client):
+    did = donate(client, key="d" * 24).json()["donation_id"]
+
+    def record():
+        return pay.record_refund(
+            donation_id=did, provider="yookassa", provider_refund_id="rf-concurrent",
+            amount=300.0, currency="RUB",
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: record(), range(12)))
+
+    assert sum(results) == 1
+    row = pay.get_row(did)
+    assert row["status"] == "refunded"
+    journal = pay.list_transactions(status="refunded")
+    assert journal["total"] == 1
+    assert journal["items"][0]["refund_count"] == 1
+    assert journal["items"][0]["refunded_amount"] == 300.0
 
 
 def test_yookassa_partial_refund_webhook_is_verified_and_idempotent(client, fake):
