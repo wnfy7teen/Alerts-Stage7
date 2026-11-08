@@ -288,7 +288,10 @@ def record_refund(
             value = Decimal(str(amount))
             if not value.is_finite() or value <= 0:
                 return False
-            refund_value = float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+            rounded = value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if rounded <= 0:
+                return False
+            refund_value = float(rounded)
         except (InvalidOperation, TypeError, ValueError):
             return False
 
