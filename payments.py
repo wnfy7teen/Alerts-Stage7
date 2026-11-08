@@ -1076,6 +1076,11 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
         if isinstance(e, PaymentError):
             raise
         log.error("Создание платежа %s не удалось: %s", method, type(e).__name__)
+        if method == "cryptopay":
+            raise PaymentError(
+                "Проверяем результат создания счёта. Повторите попытку через несколько секунд; новый счёт не создаётся.",
+                409,
+            ) from None
         raise PaymentError(GENERIC_FAIL, 502) from None
 
     try:
