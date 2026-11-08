@@ -178,8 +178,6 @@ CREATE TABLE IF NOT EXISTS donations(
 CREATE UNIQUE INDEX IF NOT EXISTS ux_donations_provider_txn
     ON donations(provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_donations_status ON donations(status, created_at);
-CREATE INDEX IF NOT EXISTS ix_donations_creation_unknown
-    ON donations(creation_unknown, creation_checked_at);
 CREATE TABLE IF NOT EXISTS refunds(
     id TEXT PRIMARY KEY,
     donation_id TEXT NOT NULL,
@@ -662,10 +660,13 @@ async def _recover_cryptopay_creation(donation_id: str) -> sqlite3.Row | None:
         return None
     if invoice is None:
         return None
+    donation = get_row(donation_id)
+    if donation is None:
+        return None
     if (
         invoice.get("currency_type") not in (None, "fiat")
-        or str(invoice.get("fiat", "")).upper() != str(get_row(donation_id)["currency"]).upper()
-        or not _amount_matches(invoice.get("amount"), get_row(donation_id)["amount"])
+        or str(invoice.get("fiat", "")).upper() != str(donation["currency"]).upper()
+        or not _amount_matches(invoice.get("amount"), donation["amount"])
     ):
         log.error("Crypto Pay: параметры найденного счёта не совпадают с донатом %s", donation_id)
         return None
