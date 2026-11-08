@@ -1,0 +1,16 @@
+[Unit]
+Description=Verified Donation Alerts backup
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=donationapp
+Group=donationapp
+WorkingDirectory=/opt/donation-alerts
+EnvironmentFile=/etc/donation-alerts.env
+ExecStart=/opt/donation-alerts/venv/bin/python /opt/donation-alerts/scripts/backup.py
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/donation-alerts
