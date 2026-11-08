@@ -31,8 +31,12 @@ class Fake:
             return httpx.Response(200, json={"id": "yk-1", "status": self.yk_status, "paid": self.yk_status == "succeeded",
                                              "amount": {"value": self.yk_amount, "currency": self.yk_currency},
                                              "metadata": {"donation_id": did}})
-        if url == "https://api.yookassa.ru/v3/refunds/rf-1":
-            return httpx.Response(200, json=self.yk_refund_data or {})
+        if url.startswith("https://api.yookassa.ru/v3/refunds/"):
+            refund_id = url.rsplit("/", 1)[-1]
+            data = self.yk_refund_data or {}
+            if data.get("id") != refund_id:
+                return httpx.Response(404, json={"description": "refund not found"})
+            return httpx.Response(200, json=data)
         if url == "https://api.nowpayments.io/v1/payment" and method == "POST":
             self.np_created.append(json.loads(request.content))
             return httpx.Response(201, json={"payment_id": 777, "payment_status": "waiting", "network": "trx",

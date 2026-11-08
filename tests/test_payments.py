@@ -134,6 +134,28 @@ def test_yookassa_partial_refund_webhook_is_verified_and_idempotent(client, fake
     assert journal["items"][0]["refunded_amount"] == 100.0
 
 
+@pytest.mark.parametrize("first_amount", [None, 300.0])
+def test_full_refund_is_terminal_and_late_refunds_are_ignored(client, first_amount):
+    did = donate(client, key="r" * 24).json()["donation_id"]
+
+    assert pay.record_refund(
+        donation_id=did, provider="yookassa", provider_refund_id="rf-full",
+        amount=first_amount, currency="RUB",
+    )
+    assert pay.get_row(did)["status"] == "refunded"
+
+    # A separate late refund event must not rewrite a terminal full-refund state.
+    assert not pay.record_refund(
+        donation_id=did, provider="yookassa", provider_refund_id="rf-late",
+        amount=25.0, currency="RUB",
+    )
+    row = pay.get_row(did)
+    assert row["status"] == "refunded"
+    journal = pay.list_transactions(status="refunded")
+    assert journal["total"] == 1
+    assert journal["items"][0]["refund_count"] == 1
+
+
 def test_nowpayments_refunded_is_not_recorded_as_failed(client, fake):
     did = donate(client, "nowpayments", key="n" * 24).json()["donation_id"]
     fake.np_status = "finished"
@@ -165,6 +187,34 @@ def test_yookassa_full_refund_marks_donation_refunded(client, fake):
     assert pay.get_row(did)["status"] == "refunded"
     journal = pay.list_transactions(status="refunded")
     assert journal["total"] == 1
+    assert journal["items"][0]["refunded_amount"] == 300.0
+
+
+def test_yookassa_late_refund_webhook_cannot_downgrade_full_refund(client, fake):
+    did = donate(client, key="w" * 24).json()["donation_id"]
+    fake.yk_status = "succeeded"
+    payment_hook = {"event": "payment.succeeded", "object": {"id": "yk-1"}}
+    assert client.post("/api/webhooks/yookassa", json=payment_hook).status_code == 200
+
+    fake.yk_refund_data = {
+        "id": "rf-full", "status": "succeeded", "payment_id": "yk-1",
+        "amount": {"value": "300.00", "currency": "RUB"},
+    }
+    full_refund_hook = {"event": "refund.succeeded", "object": {"id": "rf-full"}}
+    assert client.post("/api/webhooks/yookassa", json=full_refund_hook).status_code == 200
+    assert pay.get_row(did)["status"] == "refunded"
+
+    # A different, late provider refund event must not alter the terminal state.
+    fake.yk_refund_data = {
+        "id": "rf-late", "status": "succeeded", "payment_id": "yk-1",
+        "amount": {"value": "25.00", "currency": "RUB"},
+    }
+    late_refund_hook = {"event": "refund.succeeded", "object": {"id": "rf-late"}}
+    assert client.post("/api/webhooks/yookassa", json=late_refund_hook).status_code == 200
+    assert pay.get_row(did)["status"] == "refunded"
+    journal = pay.list_transactions(status="refunded")
+    assert journal["total"] == 1
+    assert journal["items"][0]["refund_count"] == 1
     assert journal["items"][0]["refunded_amount"] == 300.0
 
 
