@@ -18,7 +18,17 @@ def validate(archive, root):
                 raise ValueError("Unsafe archive member")
         if not {"manifest.json","donations.db"} <= {m.name for m in members}:
             raise ValueError("Archive incomplete")
-        tar.extractall(root,filter="data")
+        for member in members:
+            destination = root / member.name
+            if member.isdir():
+                destination.mkdir(parents=True, exist_ok=True)
+            else:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                source = tar.extractfile(member)
+                if source is None:
+                    raise ValueError("Archive member unreadable")
+                with source, destination.open("wb") as output:
+                    shutil.copyfileobj(source, output)
     manifest=json.loads((root/"manifest.json").read_text())
     for name, expected in manifest["sha256"].items():
         p=root/name
