@@ -917,3 +917,118 @@ def test_definite_provider_rejection_is_final_failure(client, monkeypatch, provi
     row = pay.get_by_idem(key)
     assert row["status"] == "failed"
     assert row["creation_unknown"] == 0
+
+
+
+def _lose_first_yookassa_create_response(fake, calls):
+    def handler(request):
+        if request.url.path.endswith("/payments") and request.method == "POST":
+            calls.append(request.headers.get("Idempotence-Key"))
+            response = fake.handler(request)
+            if len(calls) == 1:
+                raise httpx.ReadTimeout("YooKassa response lost after create", request=request)
+            return response
+        return fake.handler(request)
+    return handler
+
+
+def test_yookassa_lost_create_response_recovers_same_payment_on_idempotent_retry(
+    client, fake, monkeypatch
+):
+    key = "y" * 24
+    calls = []
+    monkeypatch.setattr(
+        pay, "HTTP_TRANSPORT",
+        httpx.MockTransport(_lose_first_yookassa_create_response(fake, calls)),
+    )
+
+    first = donate(client, "yookassa", key=key)
+    assert first.status_code == 409
+    row = pay.get_by_idem(key)
+    assert row["status"] == "created"
+    assert row["creation_unknown"] == 1
+    assert row["provider_txn_id"] is None
+    assert len(fake.yk_created) == 1
+
+    # Cooldown prevents a rapid retry from contacting the provider again.
+    immediate = donate(client, "yookassa", key=key)
+    assert immediate.status_code == 409
+    assert len(fake.yk_created) == 1
+
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - pay.YK_RECOVERY_COOLDOWN - 1, row["id"]),
+        )
+        db.commit()
+
+    recovered_response = donate(client, "yookassa", key=key)
+    assert recovered_response.status_code == 200, recovered_response.text
+    assert recovered_response.json()["donation_id"] == row["id"]
+    assert recovered_response.json()["checkout"]["confirmation_token"] == "ct-1"
+    recovered = pay.get_row(row["id"])
+    assert recovered["status"] == "pending"
+    assert recovered["provider_txn_id"] == "yk-1"
+    assert recovered["creation_unknown"] == 0
+    assert len(fake.yk_created) == 2
+    assert calls == [row["id"], row["id"]]
+    assert fake.yk_created[0] == fake.yk_created[1]
+
+
+def test_yookassa_lost_create_response_is_recovered_by_poller(client, fake, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        pay, "HTTP_TRANSPORT",
+        httpx.MockTransport(_lose_first_yookassa_create_response(fake, calls)),
+    )
+    first = donate(client, "yookassa", key="p" * 24)
+    assert first.status_code == 409
+    row = pay.get_by_idem("p" * 24)
+    fake.yk_status = "succeeded"
+
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - pay.YK_RECOVERY_COOLDOWN - 1, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    recovered = pay.get_row(row["id"])
+    assert recovered["status"] == "paid"
+    assert recovered["provider_txn_id"] == "yk-1"
+    assert recovered["creation_unknown"] == 0
+    assert len(fake.yk_created) == 2
+    assert calls == [row["id"], row["id"]]
+    assert len(fake.alerts) == 1
+
+
+def test_yookassa_unknown_creation_is_never_retried_after_idempotency_window(
+    client, fake, monkeypatch
+):
+    calls = []
+    monkeypatch.setattr(
+        pay, "HTTP_TRANSPORT",
+        httpx.MockTransport(_lose_first_yookassa_create_response(fake, calls)),
+    )
+    first = donate(client, "yookassa", key="e" * 24)
+    assert first.status_code == 409
+    row = pay.get_by_idem("e" * 24)
+
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET created_at=?, creation_checked_at=? WHERE id=?",
+            (
+                pay.time.time() - pay.YK_RECOVERY_WINDOW - 1,
+                pay.time.time() - pay.YK_RECOVERY_COOLDOWN - 1,
+                row["id"],
+            ),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    assert pay.get_row(row["id"])["status"] == "created"
+    assert pay.get_row(row["id"])["creation_unknown"] == 1
+    assert pay.get_row(row["id"])["provider_txn_id"] is None
+    assert len(fake.yk_created) == 1
+    assert calls == [row["id"]]
