@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Donation Alerts health checks every two minutes
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=2min
+AccuracySec=15s
+Persistent=true
+Unit=donation-alerts-healthcheck.service
+
+[Install]
+WantedBy=timers.target
