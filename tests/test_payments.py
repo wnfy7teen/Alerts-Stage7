@@ -688,7 +688,7 @@ def test_cryptopay_lost_response_is_reconciled_by_poller_and_paid_once(client, f
         )
         db.commit()
 
-    asyncio.run(pay.poll_once(1))
+    asyncio.run(pay.poll_once(12))
     recovered = pay.get_row(row["id"])
     assert recovered["status"] == "paid"
     assert recovered["provider_txn_id"] == "555"
