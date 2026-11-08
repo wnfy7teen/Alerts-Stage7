@@ -1,0 +1,16 @@
+[Unit]
+Description=Donation Alerts public health and host checks
+After=network-online.target donation-alerts.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=-/etc/donation-alerts-healthcheck.env
+ExecStart=/opt/donation-alerts/scripts/healthcheck.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/donation-alerts
