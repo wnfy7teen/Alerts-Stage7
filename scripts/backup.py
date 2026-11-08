@@ -111,15 +111,19 @@ def main() -> None:
             verify_archive(tmp_archive)
             os.chmod(tmp_archive, 0o600)
             os.replace(tmp_archive, target)
-        # Retention only after a new archive has passed verification.
-        archives = sorted(output.glob("donation-alerts-*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
-        for old in archives[KEEP:]:
-            old.unlink()
+        # Remote orchestrators can defer pruning until the uploaded copy is verified.
+        # Default behavior remains unchanged for standalone/local backup runs.
+        defer_retention = os.getenv("BACKUP_DEFER_RETENTION", "").strip().lower() in {"1", "true", "yes"}
+        if not defer_retention:
+            archives = sorted(output.glob("donation-alerts-*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+            for old in archives[KEEP:]:
+                old.unlink()
         finished = time.time()
         write_status({"status":"success","last_attempt_at":started,"last_success_at":finished,
                       "backup_file":target.name,"size_bytes":target.stat().st_size,"sha256":sha256(target),
                       "db_integrity":integrity,"config_included":config_path.is_file(),
-                      "media_included":media_path.is_dir(),"file_count":len(checksums),"retention_count":KEEP})
+                      "media_included":media_path.is_dir(),"file_count":len(checksums),"retention_count":KEEP,
+                      "retention_deferred":defer_retention})
         print(f"Backup verified: {target}")
     except Exception as exc:
         write_status({"status":"failed","last_attempt_at":started,"last_success_at":previous_success,
