@@ -55,7 +55,7 @@ def test_backup_contains_database_config_and_media_and_restores_isolated(tmp_pat
         check=True, capture_output=True, text=True,
     )
     assert "isolated directory" in restore.stdout
-    assert not restore_target.exists() is False
+    assert restore_target.is_dir()
     assert (restore_target / "media" / "alert.png").read_bytes() == b"test-media"
     with sqlite3.connect(restore_target / "donations.db") as db:
         assert db.execute("SELECT amount FROM donations WHERE id='donation-1'").fetchone()[0] == 125.0
