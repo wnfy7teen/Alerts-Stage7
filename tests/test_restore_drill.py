@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import sqlite3
 import subprocess
@@ -37,9 +38,14 @@ def _archive(tmp_path: Path, *, extra_members=(), corrupt_hash=False) -> Path:
     archive_path = tmp_path / "backup.tar.gz"
     with tarfile.open(archive_path, "w:gz") as archive:
         for path in sorted(source.rglob("*")):
-            archive.add(path, arcname=path.relative_to(source).as_posix())
+            # Avoid tarfile.add() recursively adding a directory's children;
+            # each member is deliberately written exactly once.
+            archive.add(
+                path,
+                arcname=path.relative_to(source).as_posix(),
+                recursive=False,
+            )
         for name, payload in extra_members:
-            import io
             info = tarfile.TarInfo(name)
             info.size = len(payload)
             archive.addfile(info, io.BytesIO(payload))
