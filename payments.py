@@ -609,6 +609,8 @@ async def _cp_create(donation_id: str, amount: float, currency: str, assets: str
     result = (await _cp_call("createInvoice", params, post=True)).get("result")
     if not isinstance(result, dict) or not result.get("invoice_id"):
         raise PaymentCreationUnknown("missing invoice data")
+    if str(result.get("payload", "")) != donation_id:
+        raise PaymentCreationUnknown("invoice payload does not match donation")
     checkout = _cp_checkout(result)
     return str(result["invoice_id"]), checkout
 
