@@ -61,6 +61,8 @@ NP_PAY_CURRENCY = _env("NOWPAYMENTS_PAY_CURRENCY", "usdttrc20").lower()
 HTTP_TRANSPORT: httpx.AsyncBaseTransport | None = None  # подменяется в тестах
 
 PENDING_TTL = 3 * 3600  # через сколько неоплаченный донат считаем просроченным
+YK_RECOVERY_WINDOW = 23 * 3600  # запас до истечения 24-часового окна Idempotence-Key
+YK_RECOVERY_COOLDOWN = 60  # не повторяем запрос чаще раза в минуту
 
 
 GENERIC_FAIL = "Не удалось создать платёж, попробуйте позже"
@@ -774,6 +776,62 @@ async def _yk_create(donation_id: str, amount: float, currency: str) -> tuple[st
     }
 
 
+async def _recover_yookassa_creation(donation_id: str) -> sqlite3.Row | None:
+    """Повторяет исходный запрос с тем же ключом только внутри окна идемпотентности."""
+    now = time.time()
+    existing = get_row(donation_id)
+    if (
+        existing is None
+        or existing["provider"] != "yookassa"
+        or existing["status"] != "created"
+        or not existing["creation_unknown"]
+        or now - existing["created_at"] >= YK_RECOVERY_WINDOW
+        or (
+            existing["creation_checked_at"] is not None
+            and now - existing["creation_checked_at"] < YK_RECOVERY_COOLDOWN
+        )
+    ):
+        return None
+
+    with closing(db()) as c:
+        claimed = c.execute(
+            "UPDATE donations SET creation_checked_at=? "
+            "WHERE id=? AND provider='yookassa' AND status='created' AND creation_unknown=1 "
+            "AND created_at>? AND (creation_checked_at IS NULL OR creation_checked_at<=?)",
+            (now, donation_id, now - YK_RECOVERY_WINDOW, now - YK_RECOVERY_COOLDOWN),
+        )
+        c.commit()
+    if claimed.rowcount != 1:
+        return None
+
+    # donation_id одновременно является исходным Idempotence-Key. Повторно
+    # собираем те же параметры; новый донат или новый ключ здесь не создаётся.
+    try:
+        payment_id, checkout = await _yk_create(
+            donation_id, float(existing["amount"]), str(existing["currency"])
+        )
+    except Exception as exc:
+        log.warning("ЮKassa recovery %s deferred: %s", donation_id, type(exc).__name__)
+        return None
+
+    try:
+        with closing(db()) as c:
+            cur = c.execute(
+                "UPDATE donations SET provider_txn_id=?, status='pending', checkout=?, "
+                "creation_unknown=0, creation_checked_at=NULL "
+                "WHERE id=? AND provider='yookassa' AND status='created' "
+                "AND creation_unknown=1 AND provider_txn_id IS NULL",
+                (payment_id, json.dumps(checkout), donation_id),
+            )
+            c.commit()
+    except sqlite3.IntegrityError:
+        log.error("ЮKassa recovery: payment id %s уже связан с другим донатом", payment_id)
+        return None
+    if cur.rowcount != 1:
+        return None
+    return get_row(donation_id)
+
+
 async def _yk_verdict(row: sqlite3.Row) -> str:
     async with _client() as c:
         r = await c.get(f"{YK_API}/payments/{row['provider_txn_id']}", auth=(YK_SHOP_ID, YK_SECRET))
@@ -1007,15 +1065,19 @@ async def poll_once(tick: int = 0) -> None:
         unknown_rows = []
         if tick % 12 == 0:  # не чаще одного recovery scan в минуту
             unknown_rows = c.execute(
-                "SELECT id FROM donations WHERE status='created' AND provider='cryptopay' "
-                "AND creation_unknown=1 AND (creation_checked_at IS NULL OR creation_checked_at<=?) "
-                "ORDER BY created_at LIMIT 1",
-                (now - 60,),
+                "SELECT id, provider FROM donations WHERE status='created' "
+                "AND provider IN ('cryptopay','yookassa') AND creation_unknown=1 "
+                "AND (creation_checked_at IS NULL OR creation_checked_at<=?) "
+                "ORDER BY created_at LIMIT 20",
+                (now - YK_RECOVERY_COOLDOWN,),
             ).fetchall()
         c.commit()
         rows = c.execute("SELECT * FROM donations WHERE status='pending' AND provider_txn_id IS NOT NULL").fetchall()
     for item in unknown_rows:
-        recovered = await _recover_cryptopay_creation(item["id"])
+        if item["provider"] == "cryptopay":
+            recovered = await _recover_cryptopay_creation(item["id"])
+        else:
+            recovered = await _recover_yookassa_creation(item["id"])
         if recovered:
             await refresh(recovered)
     for row in rows:
@@ -1065,6 +1127,12 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
         if not row["checkout"]:
             if row["provider"] == "cryptopay" and row["creation_unknown"]:
                 recovered = await _recover_cryptopay_creation(row["id"])
+                if recovered and recovered["checkout"]:
+                    await refresh(recovered)
+                    refreshed = get_row(row["id"])
+                    return _stored_response(refreshed)
+            if row["provider"] == "yookassa" and row["creation_unknown"]:
+                recovered = await _recover_yookassa_creation(row["id"])
                 if recovered and recovered["checkout"]:
                     await refresh(recovered)
                     refreshed = get_row(row["id"])
