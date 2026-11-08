@@ -229,8 +229,38 @@ FROM admin_audit ORDER BY id DESC LIMIT 100;
 ### Existing journal capability
 - `donations` and `refunds` store payment/refund records.
 - `list_transactions()` provides paginated financial journal fields including refund count and cumulative refund amount.
-- `admin_audit` and `record_admin_action()` already exist; configuration changes record an audit event. Verify every administrative mutation is logged, especially media upload/delete, test alert, payment settings, and manual actions.
+- `admin_audit` and `record_admin_action()` already exist; configuration changes, media uploads, test alerts and alert replays record events. The actor is currently the fixed value `admin` because authentication uses one Basic-auth account. Multi-user attribution and a full event log for payment/refund transitions remain follow-up work.
 - Keep donor messages out of audit metadata. Store actor identity and action/target only; details must be allowlisted and secrets redacted.
+
+### Proposed immutable payment-event journal schema
+
+The existing `donations` and `refunds` tables are the financial source of record, but they do not retain every status transition or webhook delivery attempt. The following additive schema is a proposal for a separately reviewed migration; it does not store raw webhook bodies, signatures or secrets:
+
+```sql
+CREATE TABLE IF NOT EXISTS payment_status_events (
+    id TEXT PRIMARY KEY,
+    donation_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_event_id TEXT,
+    event_type TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    amount TEXT,
+    currency TEXT,
+    payload_sha256 TEXT,
+    source TEXT NOT NULL,
+    result TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    FOREIGN KEY(donation_id) REFERENCES donations(id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_payment_status_provider_event
+    ON payment_status_events(provider, provider_event_id)
+    WHERE provider_event_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_payment_status_events_donation
+    ON payment_status_events(donation_id, created_at DESC);
+```
+
+Only populate `provider_event_id` when the provider's documented event identifier is stable and unique. If a provider does not expose one, leave it NULL and rely on payment/refund ID uniqueness plus verified state reconciliation. Insert the event record and the associated state transition in the same SQLite transaction. Keep payloads out of this table; retain only a SHA-256 digest and allowlisted metadata.
 
 ### Existing admin journal and audit APIs
 - Financial journal already exists: `GET /api/admin/transactions?page=1&limit=50&status=&provider=&q=`.
