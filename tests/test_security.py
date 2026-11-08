@@ -471,3 +471,7 @@ def test_overlay_deduplicates_retried_alerts_across_reload():
     assert 'localStorage.setItem(ALERT_DEDUPE_STORAGE_KEY, JSON.stringify(seenAlertOrder))' in overlay
     assert "seenAlertIds.has(id)" in overlay
     assert "slice(-500)" in overlay
+    assert "inFlightAlertIds" in overlay
+    assert "sendAcknowledgement(ws, alert.id)" in overlay
+    assert "rememberAlert(id);" in overlay
+    assert overlay.index("await show(alert)") < overlay.index("completeAlert(alert, displayed)")
