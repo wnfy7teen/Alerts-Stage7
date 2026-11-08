@@ -488,6 +488,46 @@ def test_admin_analytics_reports_gross_refunds_net_and_top_donors(client, fake):
 
 
 
+def test_broadcast_requires_overlay_ack_not_just_successful_send(monkeypatch):
+    import server
+
+    class AckSocket:
+        async def send_json(self, alert):
+            server.pending_alert_acks[(self, alert["id"])].set_result(True)
+
+    class SilentSocket:
+        async def send_json(self, alert):
+            return None
+
+    monkeypatch.setattr(server, "clients", {AckSocket()})
+    monkeypatch.setattr(server, "pending_alert_acks", {})
+    assert asyncio.run(server.broadcast({"id": "a" * 32}, ack_timeout=0.01)) is True
+
+    monkeypatch.setattr(server, "clients", {SilentSocket()})
+    assert asyncio.run(server.broadcast({"id": "b" * 32}, ack_timeout=0.001)) is False
+    assert server.pending_alert_acks == {}
+
+
+def test_overlay_ack_only_resolves_matching_pending_alert():
+    import server
+
+    class Socket:
+        pass
+
+    ws = Socket()
+
+    async def check():
+        future = asyncio.get_running_loop().create_future()
+        server.pending_alert_acks[(ws, "alert-1")] = future
+        server.handle_overlay_message(ws, json.dumps({"type": "ack", "id": "wrong"}))
+        assert not future.done()
+        server.handle_overlay_message(ws, json.dumps({"type": "ack", "id": "alert-1"}))
+        assert future.result() is True
+        server.pending_alert_acks.clear()
+
+    asyncio.run(check())
+
+
 def test_paid_handler_skips_alert_generation_when_overlay_is_offline(monkeypatch):
     import server
 

@@ -165,17 +165,63 @@ def load_cfg() -> Config:
 
 # ───────────────────────── алерты ─────────────────────────
 clients: set[WebSocket] = set()
+pending_alert_acks: dict[tuple[WebSocket, str], asyncio.Future] = {}
 
 
-async def broadcast(alert: dict) -> bool:
-    delivered = False
+async def broadcast(alert: dict, ack_timeout: float = 8) -> bool:
+    """Считает алерт доставленным только после ACK от OBS, а не после send_json."""
+    alert_id = str(alert.get("id", ""))
+    if not alert_id:
+        return False
+    loop = asyncio.get_running_loop()
+    pending: list[tuple[WebSocket, asyncio.Future]] = []
     for ws in list(clients):
+        future = loop.create_future()
+        key = (ws, alert_id)
+        pending_alert_acks[key] = future
         try:
             await ws.send_json(alert)
-            delivered = True
+            pending.append((ws, future))
         except Exception:
+            pending_alert_acks.pop(key, None)
             clients.discard(ws)
+            future.cancel()
+    if not pending:
+        return False
+    remaining = {future for _, future in pending}
+    deadline = loop.time() + max(0, ack_timeout)
+    delivered = False
+    while remaining and not delivered:
+        done, remaining = await asyncio.wait(
+            remaining, timeout=max(0, deadline - loop.time()),
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        delivered = any(
+            not future.cancelled() and future.result() is True for future in done
+        )
+        if not done:
+            break
+    for ws, future in pending:
+        pending_alert_acks.pop((ws, alert_id), None)
+        if not future.done():
+            future.cancel()
     return delivered
+
+
+def handle_overlay_message(ws: WebSocket, raw: str) -> None:
+    """Принимает только ACK для реально отправленного этому соединению алерта."""
+    try:
+        message = json.loads(raw)
+    except (TypeError, ValueError):
+        return
+    if not isinstance(message, dict) or message.get("type") != "ack":
+        return
+    alert_id = message.get("id")
+    if not isinstance(alert_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", alert_id):
+        return
+    future = pending_alert_acks.get((ws, alert_id))
+    if future is not None and not future.done():
+        future.set_result(True)
 
 
 def num_text(amount: float) -> str:
@@ -607,11 +653,17 @@ async def ws_endpoint(ws: WebSocket):
     clients.add(ws)
     try:
         while True:
-            await ws.receive_text()
+            handle_overlay_message(ws, await ws.receive_text())
     except Exception as e:  # обрыв связи с оверлеем — обычное дело
         log.debug("WebSocket закрыт: %s", type(e).__name__)
     finally:
         clients.discard(ws)
+        for key, future in list(pending_alert_acks.items()):
+            pending_ws, _alert_id = key
+            if pending_ws is ws:
+                pending_alert_acks.pop(key, None)
+                if not future.done():
+                    future.set_result(False)
 
 
 # ───────────────────────── админка ─────────────────────────
