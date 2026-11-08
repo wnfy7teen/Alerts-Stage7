@@ -258,31 +258,9 @@ FROM admin_audit ORDER BY id DESC LIMIT 100;
 
 The webhook receipt journal is already implemented as `payment_webhook_events`; do not create the proposed `payment_status_events` table below as a duplicate. The receipt journal is not a substitute for the `donations`/`refunds` financial source of record and does not assert exactly-once delivery. It stores metadata and a SHA-256 payload digest, not raw webhook bodies, signatures or secrets. The protected admin endpoint is `GET /api/admin/webhook-events`.
 
-```sql
-CREATE TABLE IF NOT EXISTS payment_status_events (
-    id TEXT PRIMARY KEY,
-    donation_id TEXT NOT NULL,
-    provider TEXT NOT NULL,
-    provider_event_id TEXT,
-    event_type TEXT NOT NULL,
-    old_status TEXT,
-    new_status TEXT,
-    amount TEXT,
-    currency TEXT,
-    payload_sha256 TEXT,
-    source TEXT NOT NULL,
-    result TEXT NOT NULL,
-    created_at REAL NOT NULL,
-    FOREIGN KEY(donation_id) REFERENCES donations(id)
-);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_payment_status_provider_event
-    ON payment_status_events(provider, provider_event_id)
-    WHERE provider_event_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS ix_payment_status_events_donation
-    ON payment_status_events(donation_id, created_at DESC);
-```
+The older `payment_status_events` SQL proposal below this section has been removed because the implemented `payment_webhook_events` receipt journal already covers webhook receipt metadata. A separate immutable status-transition ledger remains a distinct future design item and must not be confused with webhook receipt logging.
 
-Only populate `provider_event_id` when the provider's documented event identifier is stable and unique. If a provider does not expose one, leave it NULL and rely on payment/refund ID uniqueness plus verified state reconciliation. Insert the event record and the associated state transition in the same SQLite transaction. Keep payloads out of this table; retain only a SHA-256 digest and allowlisted metadata.
+
 
 ### Existing admin journal and audit APIs
 - Financial journal already exists: `GET /api/admin/transactions?page=1&limit=50&status=&provider=&q=`.
