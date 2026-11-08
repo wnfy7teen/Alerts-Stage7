@@ -288,7 +288,10 @@ def record_refund(
             value = Decimal(str(amount))
             if not value.is_finite() or value <= 0:
                 return False
-            refund_value = float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+            rounded_value = value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if rounded_value <= 0:
+                return False
+            refund_value = float(rounded_value)
         except (InvalidOperation, TypeError, ValueError):
             return False
 
@@ -315,11 +318,11 @@ def record_refund(
         if refund_value is not None:
             new_total = refunded_before + Decimal(str(refund_value))
             original = Decimal(str(row["amount"]))
-            if new_total - original > Decimal("0.01"):
+            if new_total > original:
                 log.error("Возврат превышает сумму доната %s", donation_id)
                 c.rollback()
                 return False
-            new_status = "refunded" if new_total >= original - Decimal("0.01") else "partially_refunded"
+            new_status = "refunded" if new_total >= original else "partially_refunded"
         else:
             new_status = "refunded"
         c.execute(
