@@ -1,0 +1,16 @@
+[Unit]
+Description=Read-only Donation Alerts health monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/donation-alerts-monitor.env
+ExecStart=/usr/local/sbin/donation-alerts-monitor
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/donation-alerts
