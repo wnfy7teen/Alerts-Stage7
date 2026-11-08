@@ -174,7 +174,12 @@ Example `/etc/donation-alerts-healthcheck.env`:
 BASE_URL=https://[DOMAIN]
 SERVICE_NAME=donation-alerts.service
 BACKUP_STATUS=[BACKUP_STATUS_PATH]
+DB_PATH=[DB_PATH]
 MIN_FREE_KB=1048576
+MIN_MEM_AVAILABLE_KB=262144
+BACKUP_MAX_AGE_SECONDS=172800
+STUCK_PAYMENT_SECONDS=3600
+MAX_OUTBOX_AGE_SECONDS=300
 TELEGRAM_BOT_TOKEN=[TELEGRAM_BOT_TOKEN]
 TELEGRAM_CHAT_ID=[TELEGRAM_CHAT_ID]
 ```
@@ -190,7 +195,7 @@ systemctl enable --now donation-alerts-healthcheck.timer
 systemctl start donation-alerts-healthcheck.service
 journalctl -u donation-alerts-healthcheck.service -n 30 --no-pager
 ```
-The script checks public API health, systemd service, root filesystem free space and local backup status. Telegram notification is sent only when the failure set changes; the alert-state file is stored under persistent data. It does not yet inspect provider-specific error rates or queue age.
+The script checks public API health, systemd service, root filesystem free space, available memory, backup success age, old pending payments and oldest pending OBS outbox record. Telegram notification is sent when the failure set changes and a recovery notification is sent when all checks pass again; the alert-state file is stored under persistent data. It does not inspect provider-specific error rates or remote object-store availability directly.
 
 ### Suggested read-only SQL monitoring
 Run against a consistent read-only copy or with the app's DB connection during low traffic:
