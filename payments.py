@@ -314,6 +314,15 @@ def record_webhook_event(
         return cur.rowcount == 1
 
 
+def _record_webhook_event_safely(**event) -> bool:
+    """Journal failures must not block provider status reconciliation."""
+    try:
+        return record_webhook_event(**event)
+    except Exception as exc:
+        log.warning("Не удалось записать метаданные webhook (%s)", type(exc).__name__)
+        return False
+
+
 def list_webhook_events(*, limit: int = 50, offset: int = 0, provider: str = "") -> dict:
     page_size = min(100, max(1, int(limit)))
     page_offset = max(0, int(offset))
@@ -1293,7 +1302,7 @@ async def handle_yookassa_webhook(body: dict, client_ip: str) -> None:
         ).encode("utf-8")).hexdigest()
         txn_for_event = obj.get("id") if event_type.startswith("payment.") else None
         linked_row = find_by_txn("yookassa", txn_for_event) if isinstance(txn_for_event, str) else None
-        record_webhook_event(
+        _record_webhook_event_safely(
             provider="yookassa", event_type=event_type, provider_event_id=provider_event_id,
             donation_id=linked_row["id"] if linked_row else None,
             payload_sha256=payload_hash, result="received",
@@ -1345,7 +1354,7 @@ async def handle_nowpayments_webhook(raw: bytes, signature: str) -> None:
         raise PaymentError("forbidden", 403)
     payment_id = str(payload.get("payment_id", ""))
     row = find_by_txn("nowpayments", payment_id)
-    record_webhook_event(
+    _record_webhook_event_safely(
         provider="nowpayments", event_type=str(payload.get("payment_status") or "unknown"),
         provider_event_id=payment_id, donation_id=row["id"] if row else None,
         payload_sha256=hashlib.sha256(raw).hexdigest(),
@@ -1374,7 +1383,7 @@ async def handle_cryptopay_webhook(raw: bytes, signature: str) -> None:
             raise PaymentError("bad request", 400)
         invoice_id = str(payload.get("invoice_id", ""))
         row = find_by_txn("cryptopay", invoice_id)
-        record_webhook_event(
+        _record_webhook_event_safely(
             provider="cryptopay", event_type=str(upd.get("update_type") or "unknown"),
             provider_event_id=invoice_id, donation_id=row["id"] if row else None,
             payload_sha256=hashlib.sha256(raw).hexdigest(),
