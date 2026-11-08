@@ -607,6 +607,12 @@ def test_cryptopay_lost_create_response_recovers_same_invoice_on_idempotent_retr
     assert row["creation_unknown"] == 1
     assert row["provider_txn_id"] is None
     assert fake.cp_create_calls == 1
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 20, row["id"]),
+        )
+        db.commit()
 
     second = donate(client, "cryptopay", key=key)
     assert second.status_code == 200, second.text
