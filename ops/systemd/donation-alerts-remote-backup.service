@@ -12,6 +12,6 @@ ExecStart=/usr/bin/bash /opt/donation-alerts/scripts/remote_backup.sh
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=read-only
 ReadOnlyPaths=/opt/donation-alerts /var/backups/donation-alerts /etc/rclone/rclone.conf
 ReadWritePaths=/run/lock
