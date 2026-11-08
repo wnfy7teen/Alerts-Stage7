@@ -276,7 +276,8 @@ def render_donate(template: str, req: Request, cfg) -> str:
         "{{FAQ}}": faq_html, "{{LINKS}}": links_html, "{{CFG}}": cfg_json,
     }
     out = template
-    for token, value in subs.items():
+    # Replace longer placeholders first: {{MIN}} is a prefix of {{MINHINT}}.
+    for token, value in sorted(subs.items(), key=lambda item: len(item[0]), reverse=True):
         out = out.replace(token, value)
     return out
 
