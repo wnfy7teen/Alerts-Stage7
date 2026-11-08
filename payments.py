@@ -611,6 +611,12 @@ async def _cp_create(donation_id: str, amount: float, currency: str, assets: str
         raise PaymentCreationUnknown("missing invoice data")
     if str(result.get("payload", "")) != donation_id:
         raise PaymentCreationUnknown("invoice payload does not match donation")
+    if (
+        result.get("currency_type") != "fiat"
+        or str(result.get("fiat", "")).upper() != currency.upper()
+        or not _amount_matches(result.get("amount"), amount)
+    ):
+        raise PaymentCreationUnknown("invoice terms do not match donation")
     checkout = _cp_checkout(result)
     return str(result["invoice_id"]), checkout
 
@@ -724,6 +730,9 @@ async def _cp_verdict(row: sqlite3.Row) -> str:
     if not inv:
         return "pending"
     if inv.get("status") == "paid":
+        if inv.get("currency_type") != "fiat":
+            log.error("Crypto Pay: тип валюты счёта не совпадает для %s", row["id"])
+            return "pending"
         if not _amount_matches(inv.get("amount"), row["amount"]):
             log.error("Crypto Pay: сумма счёта не совпадает с донатом %s", row["id"])
             return "pending"
