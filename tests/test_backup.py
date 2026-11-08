@@ -1,3 +1,5 @@
+import hashlib
+import io
 import json
 import os
 import sqlite3
@@ -72,4 +74,35 @@ def test_restore_dry_run_does_not_create_target(tmp_path):
         capture_output=True, text=True,
     )
     assert result.returncode != 0
+    assert not target.exists()
+
+
+
+def test_restore_backup_rejects_duplicate_archive_members(tmp_path):
+    database = tmp_path / "donations.db"
+    with sqlite3.connect(database) as db:
+        db.execute("CREATE TABLE donations(id TEXT PRIMARY KEY)")
+    database_bytes = database.read_bytes()
+    manifest = json.dumps({
+        "sha256": {"donations.db": hashlib.sha256(database_bytes).hexdigest()}
+    }).encode("utf-8")
+    archive_path = tmp_path / "duplicate.tar.gz"
+    with tarfile.open(archive_path, "w:gz") as archive:
+        manifest_info = tarfile.TarInfo("manifest.json")
+        manifest_info.size = len(manifest)
+        archive.addfile(manifest_info, io.BytesIO(manifest))
+        for _ in range(2):
+            db_info = tarfile.TarInfo("donations.db")
+            db_info.size = len(database_bytes)
+            archive.addfile(db_info, io.BytesIO(database_bytes))
+
+    target = tmp_path / "restore-target"
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "restore_backup.py"), str(archive_path),
+         "--target", str(target)],
+        capture_output=True, text=True,
+    )
+
+    assert result.returncode != 0
+    assert "Duplicate archive member" in result.stderr
     assert not target.exists()
