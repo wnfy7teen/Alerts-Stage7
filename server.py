@@ -372,7 +372,7 @@ ADMIN = [Depends(admin), Depends(sec.csrf_guard)]  # вход + защита о�
 # ───────────────────────── публичные страницы ─────────────────────────
 
 
-donate_limiter = pay.RateLimiter(limit=5, window=600)  # 5 попыток за 10 минут на IP
+donate_limiter = pay.RateLimiter(limit=15, window=600)  # 5 попыток за 10 минут на IP
 IDEM_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 
 
@@ -446,6 +446,12 @@ def favicon_svg():
 @app.get("/favicon.ico")
 def favicon_ico():
     return static_asset("favicon.ico", "image/x-icon")
+
+
+@app.get("/yandex_f635b5b1368c3ec6.html")
+def yandex_verification():
+    """Публичный файл подтверждения прав в Яндекс Вебмастере."""
+    return static_asset("yandex_f635b5b1368c3ec6.html", "text/html; charset=utf-8")
 
 
 @app.get("/overlay")
