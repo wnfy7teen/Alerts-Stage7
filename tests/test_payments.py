@@ -6,6 +6,7 @@ import os
 import sqlite3
 from contextlib import closing
 
+import httpx
 import pytest
 
 import payments as pay
@@ -586,3 +587,74 @@ def test_admin_audit_is_protected_and_records_safe_actions(client):
     assert all(item["actor"] == "admin" for item in data["items"])
     assert "Do not persist this message" not in response.text
     assert client.get("/api/admin/audit").status_code == 401
+
+
+
+def test_cryptopay_lost_create_response_recovers_same_invoice_on_idempotent_retry(client, fake, monkeypatch):
+    key = "c" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("response lost after provider created invoice", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    first = donate(client, "cryptopay", key=key)
+    assert first.status_code == 502
+    row = pay.get_by_idem(key)
+    assert row["status"] == "created"
+    assert row["creation_unknown"] == 1
+    assert row["provider_txn_id"] is None
+    assert fake.cp_create_calls == 1
+
+    second = donate(client, "cryptopay", key=key)
+    assert second.status_code == 200, second.text
+    assert second.json()["donation_id"] == row["id"]
+    assert second.json()["checkout"]["url"].startswith("https://t.me/")
+    recovered = pay.get_row(row["id"])
+    assert recovered["status"] == "pending"
+    assert recovered["provider_txn_id"] == "555"
+    assert recovered["creation_unknown"] == 0
+    assert fake.cp_create_calls == 1
+
+
+def test_cryptopay_unknown_creation_is_not_expired_by_local_ttl(client, fake, monkeypatch):
+    key = "d" * 24
+
+    def handler(request):
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ConnectTimeout("provider connection timed out", request=request)
+        return fake.handler(request)
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    first = donate(client, "cryptopay", key=key)
+    assert first.status_code == 502
+    row = pay.get_by_idem(key)
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET created_at=?, creation_checked_at=? WHERE id=?",
+            (pay.time.time() - pay.PENDING_TTL - 120, pay.time.time() - 120, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(1))
+    current = pay.get_row(row["id"])
+    assert current["status"] == "created"
+    assert current["creation_unknown"] == 1
+    assert current["provider_txn_id"] is None
+    assert fake.cp_create_calls == 0
+
+
+def test_cryptopay_explicit_provider_rejection_is_final_failure(client, fake, monkeypatch):
+    def handler(request):
+        if request.url.path.endswith("/createInvoice"):
+            return httpx.Response(200, json={"ok": False, "error": {"name": "BAD_REQUEST"}})
+        return fake.handler(request)
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    response = donate(client, "cryptopay", key="e" * 24)
+    assert response.status_code == 502
+    row = pay.get_by_idem("e" * 24)
+    assert row["status"] == "failed"
+    assert row["creation_unknown"] == 0
