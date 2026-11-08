@@ -13,6 +13,11 @@ systemctl is-active --quiet "${NGINX_NAME:-nginx.service}" || issues+=("nginx.se
 curl -fsSL --max-time 12 "$SITE_URL/" >/dev/null 2>&1 || issues+=("public homepage unavailable")
 health="$(curl -fsS --max-time 5 "$HEALTH_URL" 2>/dev/null || true)"
 [[ "$health" == *'"status":"ok"'* ]] || issues+=("local API health failed")
+ws_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
+  -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+  -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+  "http://127.0.0.1:8000/ws?key=healthcheck-invalid" 2>/dev/null || true)"
+[[ "$ws_code" == "403" ]] || issues+=("WebSocket endpoint handshake failed")
 if journalctl -u "${SERVICE_NAME:-donation-alerts.service}" --since "5 minutes ago" -o cat --no-pager 2>/dev/null \
   | grep -Eiq 'ЮKassa:|NOWPayments:|Crypto Pay |Не удалось проверить'; then
   issues+=("payment provider verification errors in recent application logs")
