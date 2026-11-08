@@ -474,4 +474,5 @@ def test_overlay_deduplicates_retried_alerts_across_reload():
     assert "inFlightAlertIds" in overlay
     assert "sendAcknowledgement(ws, alert.id)" in overlay
     assert "rememberAlert(id);" in overlay
-    assert overlay.index("await show(alert)") < overlay.index("completeAlert(alert, displayed)")
+    next_block = overlay[overlay.index("async function next()"):]
+    assert next_block.index("await show(alert)") < next_block.index("completeAlert(alert, displayed)")
