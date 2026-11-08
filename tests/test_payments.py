@@ -819,3 +819,17 @@ def test_cryptopay_ambiguous_provider_responses_remain_recoverable(
     assert row["creation_unknown"] == 1
     assert row["provider_txn_id"] is None
     assert row["checkout"] is None
+
+
+def test_cryptopay_recovery_does_not_assume_uniqueness_past_scan_cap(monkeypatch):
+    calls = []
+
+    async def full_pages(method, params=None, post=False):
+        calls.append(params["offset"])
+        items = [{"payload": "target", "invoice_id": "first"}] if params["offset"] == 0 else []
+        items.extend({"payload": "other", "invoice_id": str(i)} for i in range(999))
+        return {"ok": True, "result": {"items": items}}
+
+    monkeypatch.setattr(pay, "_cp_call", full_pages)
+    assert asyncio.run(pay._cp_find_invoice_by_payload("target")) is None
+    assert calls == list(range(0, 10_000, 1_000))
