@@ -298,7 +298,9 @@ def record_refund(
         if not row or row["provider"] != provider or row["currency"].upper() != currency.upper():
             c.rollback()
             return False
-        if row["status"] not in ("created", "pending", "paid", "partially_refunded", "refunded"):
+        # A fully refunded donation is terminal. Late, distinct refund notifications
+        # must not downgrade it back to partially_refunded or inflate refund totals.
+        if row["status"] not in ("created", "pending", "paid", "partially_refunded"):
             c.rollback()
             return False
         exists = c.execute(
