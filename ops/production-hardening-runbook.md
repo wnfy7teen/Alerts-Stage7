@@ -87,6 +87,8 @@ The script expects an rclone **crypt remote** named by `REMOTE_PATH`; configure 
 Example `/etc/donation-alerts-remote-backup.env` (replace placeholders):
 ```ini
 BACKUP_DIR=[BACKUP_DIR]
+PROJECT_PATH=[PROJECT_PATH]
+BACKUP_MAX_AGE_SECONDS=172800
 REMOTE_PATH=donation-backups-crypt:donation-alerts
 RCLONE_CONFIG=/etc/rclone/rclone.conf
 ```
@@ -194,7 +196,7 @@ systemctl enable --now donation-alerts-healthcheck.timer
 systemctl start donation-alerts-healthcheck.service
 journalctl -u donation-alerts-healthcheck.service -n 30 --no-pager
 ```
-The script checks public API health, systemd service, root filesystem free space, available memory, backup success age, old pending payments and oldest pending OBS outbox record. Telegram notification is sent when the failure set changes and a recovery notification is sent when all checks pass again; the alert-state file is stored under persistent data. It does not inspect provider-specific error rates or remote object-store availability directly.
+The script checks public API health, systemd service, root filesystem free space, available memory, backup success age, old pending payments and oldest pending OBS outbox record. Telegram notification is sent when the failure set changes and a recovery notification is sent when all checks pass again; the alert-state file is stored under persistent data. Example messages: `Donation Alerts health alert: public_health_failed stale_obs_outbox:720` and `Donation Alerts recovery: all health checks passed.` It does not inspect provider-specific error rates or remote object-store availability directly.
 
 ### Suggested read-only SQL monitoring
 Run against a consistent read-only copy or with the app's DB connection during low traffic:
