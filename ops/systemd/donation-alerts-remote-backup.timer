@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily encrypted off-site backup for Donation Alerts
+
+[Timer]
+OnCalendar=*-*-* 04:45:00
+RandomizedDelaySec=5m
+Persistent=true
+Unit=donation-alerts-remote-backup.service
+
+[Install]
+WantedBy=timers.target
