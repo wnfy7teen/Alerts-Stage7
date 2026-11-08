@@ -64,6 +64,9 @@ Backup directory: `[BACKUP_DIR]`
 - `refunded` is terminal for additional refund notifications.
 - `failed/canceled/expired → paid` must be treated as a late settlement exception: fetch provider state, record an audit event, and alert staff; do not discard money received. Add explicit transition tests.
 - Provider errors, timeouts, malformed JSON and signature failures must never change a payment status.
+- Review refund amount rounding: `record_refund()` validates positivity before rounding to cents; a positive sub-cent value can quantize to `0.00`. Add a test and reject any amount that rounds to zero.
+- Confirm NOWPayments `payment_status='refunded'` semantics: current polling records a synthetic refund ID with `amount=None` and treats it as a full refund. Verify provider semantics for partial refunds before relying on this path.
+- Review NOWPayments `finished` reconciliation against the provider's actual paid amount fields (where applicable), not only invoice price amount/currency.
 
 ### Staging-only replay/concurrency tests
 - Send identical signed webhook payload concurrently (at least 10 requests); assert one paid transition, one outbox row and one delivered alert ID.
