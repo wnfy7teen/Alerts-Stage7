@@ -168,7 +168,7 @@ clients: set[WebSocket] = set()
 pending_alert_acks: dict[tuple[WebSocket, str], asyncio.Future] = {}
 
 
-async def broadcast(alert: dict, ack_timeout: float = 20) -> bool:
+async def broadcast(alert: dict, ack_timeout: float = 8) -> bool:
     """Считает алерт доставленным только после ACK от OBS, а не после send_json."""
     alert_id = str(alert.get("id", ""))
     if not alert_id:
@@ -650,9 +650,10 @@ async def ws_endpoint(ws: WebSocket):
         log.debug("WebSocket закрыт: %s", type(e).__name__)
     finally:
         clients.discard(ws)
-        for (pending_ws, _), future in list(pending_alert_acks.items()):
+        for key, future in list(pending_alert_acks.items()):
+            pending_ws, _alert_id = key
             if pending_ws is ws:
-                pending_alert_acks.pop((pending_ws, _), None)
+                pending_alert_acks.pop(key, None)
                 if not future.done():
                     future.set_result(False)
 
