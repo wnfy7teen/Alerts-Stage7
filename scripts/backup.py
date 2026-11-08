@@ -48,7 +48,10 @@ def verify_archive(path: Path) -> dict:
                         shutil.copyfileobj(source, output)
         manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
         for relative, expected in manifest["sha256"].items():
-            file = root / relative
+            relative_path = Path(relative)
+            if relative_path.is_absolute() or ".." in relative_path.parts:
+                raise RuntimeError("backup_manifest_unsafe_path")
+            file = root / relative_path
             if not file.is_file() or sha256(file) != expected:
                 raise RuntimeError("backup_checksum_mismatch")
         with closing(sqlite3.connect(root / "donations.db")) as db:
@@ -89,7 +92,11 @@ def main() -> None:
             if config_path.is_file():
                 shutil.copy2(config_path, stage / "config.json")
                 checksums["config.json"] = sha256(stage / "config.json")
+            if media_path.is_symlink():
+                raise RuntimeError("media_directory_is_symlink")
             if media_path.is_dir():
+                if any(item.is_symlink() for item in media_path.rglob("*")):
+                    raise RuntimeError("media_contains_symlink")
                 shutil.copytree(media_path, stage / "media", symlinks=False)
                 for file in sorted((stage / "media").rglob("*")):
                     if file.is_file():
