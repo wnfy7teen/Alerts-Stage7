@@ -12,7 +12,11 @@ def digest(path):
 def validate(archive, root):
     with tarfile.open(archive,"r:gz") as tar:
         members=tar.getmembers()
+        names=set()
         for m in members:
+            if m.name in names:
+                raise ValueError("Duplicate archive member")
+            names.add(m.name)
             p=Path(m.name)
             if p.is_absolute() or ".." in p.parts or not (m.isfile() or m.isdir()):
                 raise ValueError("Unsafe archive member")
