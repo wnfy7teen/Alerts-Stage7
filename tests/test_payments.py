@@ -607,6 +607,12 @@ def test_cryptopay_lost_create_response_recovers_same_invoice_on_idempotent_retr
     assert row["creation_unknown"] == 1
     assert row["provider_txn_id"] is None
     assert fake.cp_create_calls == 1
+
+    # Пока cooldown не истёк, повторный запрос не должен создавать новый invoice.
+    immediate_retry = donate(client, "cryptopay", key=key)
+    assert immediate_retry.status_code == 409
+    assert fake.cp_create_calls == 1
+
     with closing(pay.db()) as db:
         db.execute(
             "UPDATE donations SET creation_checked_at=? WHERE id=?",
@@ -720,3 +726,69 @@ def test_existing_donations_schema_migrates_creation_recovery_columns(tmp_path, 
     assert "creation_checked_at" in columns
     assert row["creation_unknown"] == 0
     assert row["creation_checked_at"] is None
+
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [("amount", "299.99"), ("fiat", "USD")],
+)
+def test_cryptopay_recovery_rejects_invoice_amount_or_currency_mismatch(
+    client, fake, monkeypatch, field, invalid_value
+):
+    key = "m" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("response lost", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    assert donate(client, "cryptopay", key=key).status_code == 502
+    row = pay.get_by_idem(key)
+    setattr(fake, "cp_" + field, invalid_value)
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 61, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    current = pay.get_row(row["id"])
+    assert current["status"] == "created"
+    assert current["creation_unknown"] == 1
+    assert current["provider_txn_id"] is None
+    assert fake.alerts == []
+    assert fake.cp_create_calls == 1
+
+
+def test_cryptopay_recovery_refuses_multiple_invoices_with_same_payload(client, fake, monkeypatch):
+    key = "u" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("response lost", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    assert donate(client, "cryptopay", key=key).status_code == 502
+    row = pay.get_by_idem(key)
+    duplicate = dict(fake.cp_invoices[0])
+    duplicate["invoice_id"] = 556
+    fake.cp_invoices.append(duplicate)
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 61, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    current = pay.get_row(row["id"])
+    assert current["status"] == "created"
+    assert current["creation_unknown"] == 1
+    assert current["provider_txn_id"] is None
+    assert fake.cp_create_calls == 1
