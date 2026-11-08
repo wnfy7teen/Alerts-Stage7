@@ -664,3 +664,59 @@ def test_cryptopay_explicit_provider_rejection_is_final_failure(client, fake, mo
     row = pay.get_by_idem("e" * 24)
     assert row["status"] == "failed"
     assert row["creation_unknown"] == 0
+
+
+
+def test_cryptopay_lost_response_is_reconciled_by_poller_and_paid_once(client, fake, monkeypatch):
+    key = "p" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("provider response was lost", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    first = donate(client, "cryptopay", key=key)
+    assert first.status_code == 502
+    row = pay.get_by_idem(key)
+    fake.cp_invoices[0]["status"] = "paid"
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 61, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(1))
+    recovered = pay.get_row(row["id"])
+    assert recovered["status"] == "paid"
+    assert recovered["provider_txn_id"] == "555"
+    assert recovered["creation_unknown"] == 0
+    assert fake.cp_create_calls == 1
+    assert len(fake.alerts) == 1
+
+
+def test_existing_donations_schema_migrates_creation_recovery_columns(tmp_path, monkeypatch):
+    monkeypatch.setattr(pay, "DB_PATH", tmp_path / "existing.db")
+    with closing(sqlite3.connect(pay.DB_PATH)) as db:
+        db.execute(
+            "CREATE TABLE donations("
+            "id TEXT PRIMARY KEY, amount REAL NOT NULL, currency TEXT NOT NULL, status TEXT NOT NULL, "
+            "donor_name TEXT NOT NULL, message TEXT NOT NULL, provider TEXT NOT NULL, provider_txn_id TEXT, "
+            "idem_key TEXT UNIQUE, checkout TEXT, created_at REAL NOT NULL, paid_at REAL)"
+        )
+        db.execute(
+            "INSERT INTO donations(id,amount,currency,status,donor_name,message,provider,created_at) "
+            "VALUES('existing',100,'RUB','failed','Test','Message','cryptopay',1)"
+        )
+        db.commit()
+
+    pay.init_db()
+    with closing(pay.db()) as db:
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(donations)")}
+        row = db.execute("SELECT creation_unknown, creation_checked_at FROM donations WHERE id='existing'").fetchone()
+    assert "creation_unknown" in columns
+    assert "creation_checked_at" in columns
+    assert row["creation_unknown"] == 0
+    assert row["creation_checked_at"] is None
