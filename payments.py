@@ -197,6 +197,15 @@ CREATE TABLE IF NOT EXISTS alert_outbox(
 );
 CREATE INDEX IF NOT EXISTS ix_alert_outbox_pending
     ON alert_outbox(delivered_at, next_attempt_at, claimed_until);
+CREATE TABLE IF NOT EXISTS admin_audit(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at REAL NOT NULL,
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target TEXT NOT NULL DEFAULT '',
+    details_json TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS ix_admin_audit_created ON admin_audit(created_at DESC);
 """
 
 
@@ -304,6 +313,40 @@ def record_refund(
         c.execute("UPDATE donations SET status=? WHERE id=?", (new_status, donation_id))
         c.commit()
     return True
+
+
+def record_admin_action(action: str, *, target: str = "", details: dict | None = None) -> None:
+    """Append a minimal admin audit event; never store secrets or donor message bodies here."""
+    safe_action = re.sub(r"[^a-zA-Z0-9_.-]", "_", action)[:80]
+    safe_target = str(target)[:160]
+    safe_details = json.dumps(details or {}, ensure_ascii=False, separators=(",", ":"))[:2000]
+    with closing(db()) as c:
+        c.execute(
+            "INSERT INTO admin_audit(created_at,actor,action,target,details_json) VALUES(?,?,?,?,?)",
+            (time.time(), "admin", safe_action, safe_target, safe_details),
+        )
+        c.commit()
+
+
+def list_admin_audit(*, limit: int = 50, offset: int = 0) -> dict:
+    page_size = min(100, max(1, int(limit)))
+    page_offset = max(0, int(offset))
+    with closing(db()) as c:
+        total = c.execute("SELECT COUNT(*) FROM admin_audit").fetchone()[0]
+        rows = c.execute(
+            "SELECT id,created_at,actor,action,target,details_json FROM admin_audit "
+            "ORDER BY id DESC LIMIT ? OFFSET ?", (page_size, page_offset)
+        ).fetchall()
+    items = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["details"] = json.loads(item.pop("details_json") or "{}")
+        except (TypeError, ValueError):
+            item["details"] = {}
+            item.pop("details_json", None)
+        items.append(item)
+    return {"total": int(total), "limit": page_size, "offset": page_offset, "items": items}
 
 
 def recent(limit: int = 30) -> list[dict]:
