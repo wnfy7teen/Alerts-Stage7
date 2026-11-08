@@ -372,6 +372,40 @@ def test_cryptopay_webhook(client, fake):
     assert events["items"][0]["result"] == "matched"
 
 
+def test_webhook_journal_database_failure_does_not_block_payment_reconciliation(client, fake, monkeypatch):
+    def fail_journal(**_kwargs):
+        raise sqlite3.OperationalError("simulated journal outage")
+
+    monkeypatch.setattr(pay, "record_webhook_event", fail_journal)
+
+    yk_donation = donate(client, "yookassa", key="j" * 24).json()["donation_id"]
+    fake.yk_status = "succeeded"
+    yk_hook = {"event": "payment.succeeded", "object": {"id": "yk-1"}}
+    assert client.post("/api/webhooks/yookassa", json=yk_hook).status_code == 200
+
+    np_donation = donate(client, "nowpayments", key="n" * 24).json()["donation_id"]
+    fake.np_status = "finished"
+    np_payload = {"payment_id": 777, "payment_status": "finished", "order_id": np_donation}
+    np_raw = json.dumps(np_payload).encode()
+    np_sig = pay.np_signature(np_payload, "np-ipn-secret")
+    assert client.post("/api/webhooks/nowpayments", content=np_raw,
+                       headers={"x-nowpayments-sig": np_sig}).status_code == 200
+
+    cp_donation = donate(client, "cryptopay", key="p" * 24).json()["donation_id"]
+    fake.cp_status = "paid"
+    cp_raw = json.dumps({
+        "update_type": "invoice_paid", "payload": {"invoice_id": 555}
+    }).encode()
+    cp_sig = hmac.new(hashlib.sha256(b"cp-token").digest(), cp_raw, hashlib.sha256).hexdigest()
+    assert client.post("/api/webhooks/cryptopay", content=cp_raw,
+                       headers={"crypto-pay-api-signature": cp_sig}).status_code == 200
+
+    assert [pay.get_row(did)["status"] for did in (yk_donation, np_donation, cp_donation)] == [
+        "paid", "paid", "paid"
+    ]
+    assert len(fake.alerts) == 3
+
+
 def test_poller_credits_without_webhook(client, fake):
     donate(client, "nowpayments")
     fake.np_status = "finished"
