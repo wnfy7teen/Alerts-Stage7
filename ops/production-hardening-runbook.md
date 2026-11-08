@@ -18,12 +18,11 @@ Backup directory: `[BACKUP_DIR]`
 - An HTTP integration test was added: it calls the YooKassa refund webhook for a full refund, then a distinct late refund webhook, and asserts that status, count, and refunded total remain unchanged.
 
 ### Exact release sequence
-1. Open PR #88 and verify the latest head commit is `124e4747f42f282e41cf642fcf3996da8861c4ca` or a newer reviewed commit.
-2. Wait until **all required checks on that exact head SHA** are green. The prior successful run on the previous SHA is not sufficient.
-3. Confirm the PR is open, mergeable, based on current `main`, and has no unresolved review request.
-4. Merge with squash (or repository-required merge method). Record the merge SHA.
-5. Wait for the `push` workflow on `main`; verify both test job and **Deploy production** job succeeded. A skipped deploy is not a successful deployment.
-6. Run non-financial smoke checks:
+1. PR #88 is now merged. Tested head SHA: `e0c69f2912ee4f1e2696b3996d27bffbd77d3d0c`; CI run `42505346624` succeeded (142 tests, including the new HTTP refund regression, plus browser tests).
+2. Merge SHA: `6d46c7fe41631776f22d98edaac09531e4268c3c`.
+3. The production push/deploy workflow result has not been independently confirmed through the available GitHub status interface; do not infer deployment from merge success.
+4. Verify the `push` workflow on `main`; both test job and **Deploy production** job must succeed. A skipped deploy is not a successful deployment.
+5. Run non-financial smoke checks:
    - `curl -fsS https://[DOMAIN]/api/health`
    - `curl -fsSL -o /dev/null -w '%{http_code}\n' https://[DOMAIN]/`
    - `systemctl is-active donation-alerts.service`
@@ -158,7 +157,7 @@ On a staging VPS, reboot in a maintenance window, then verify service active, lo
 - Admin currently uses HTTP Basic with a constant-time password comparison and an in-memory per-process failure limiter. This is not a session-based login system.
 - State-changing admin routes are grouped under `ADMIN = [Depends(admin), Depends(sec.csrf_guard)]`; verify every mutation route uses this dependency.
 - CSP nonce and common security headers are implemented. Verify whether CSP is enforced or report-only via `CSP_REPORT_ONLY`.
-- `.gitignore` excludes `.env`, virtual environments and common local DB names, but it does not explicitly ignore every project-specific `donations.db`, `*.sqlite*`, archive and backup pattern. Add explicit rules and scan tracked files/history.
+- `.gitignore` on `main` excludes `.env`, virtual environments and common local DB names. PR #89 adds explicit rules for `.env.*`, project DB files, SQLite WAL files and backup archives; these rules are not active on `main` until PR #89 is merged. Scan tracked files/history separately.
 - Sentry scrubber removes request headers/body and query strings, but ordinary application logs still need a separate audit; `provider_fail()` currently logs a truncated provider detail, which must be reviewed for token/PII leakage.
 - Dependency audit and full git-history secret scan have not been run from a secured checkout in this task.
 
@@ -233,9 +232,11 @@ FROM admin_audit ORDER BY id DESC LIMIT 100;
 - `admin_audit` and `record_admin_action()` already exist; configuration changes record an audit event. Verify every administrative mutation is logged, especially media upload/delete, test alert, payment settings, and manual actions.
 - Keep donor messages out of audit metadata. Store actor identity and action/target only; details must be allowlisted and secrets redacted.
 
-### API/UI implementation target
-- Admin financial journal: `GET /api/admin/transactions?status=&provider=&query=&limit=50&offset=0`.
-- Admin audit: `GET /api/admin/audit?limit=50&offset=0`.
+### Existing admin journal and audit APIs
+- Financial journal already exists: `GET /api/admin/transactions?page=1&limit=50&status=&provider=&q=`.
+- CSV export already exists: `GET /api/admin/transactions.csv?status=&provider=&q=`; CSV cells are protected against formula injection.
+- Audit API already exists: `GET /api/admin/audit?page=1&limit=50`.
+- The admin HTML already renders journal, analytics and audit views. Review every `innerHTML` insertion for context-appropriate escaping; current inspected rows use `esc()` for donor-controlled values.
 - UI columns: date/time, donation ID (shortened), provider, donor, amount/currency, status, refund total/count; details drawer shows provider transaction ID and refund history with sensitive data masked.
 - Audit view: timestamp, actor, action, target; never render untrusted fields as HTML.
 - Monitoring dashboard: service health, latest backup timestamp/result, free disk, pending outbox count/oldest age, pending payment count/oldest age, provider error counts.
