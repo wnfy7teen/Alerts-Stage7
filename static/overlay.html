@@ -99,8 +99,7 @@ try {
 }
 
 function rememberAlert(id) {
-  if (!id) return true;
-  if (seenAlertIds.has(id)) return false;
+  if (!id || seenAlertIds.has(id)) return;
   seenAlertIds.add(id);
   seenAlertOrder.push(id);
   if (seenAlertOrder.length > 500) seenAlertIds.delete(seenAlertOrder.shift());
@@ -109,7 +108,28 @@ function rememberAlert(id) {
   } catch (_) {
     // In-memory deduplication remains available if persistent storage is blocked.
   }
-  return true;
+}
+
+const inFlightAlertIds = new Set();
+const acknowledgementTargets = new Map();
+
+function sendAcknowledgement(ws, id) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    try { ws.send(JSON.stringify({ type: "ack", id })); } catch (_) {}
+  }
+}
+
+function completeAlert(alert, displayed) {
+  const id = alert && alert.id;
+  if (!id) return;
+  const targets = acknowledgementTargets.get(id) || new Set();
+  if (displayed) {
+    // Persist the receipt only after the alert has finished displaying.
+    rememberAlert(id);
+    for (const ws of targets) sendAcknowledgement(ws, id);
+  }
+  acknowledgementTargets.delete(id);
+  inFlightAlertIds.delete(id);
 }
 
 function connect() {
@@ -123,8 +143,18 @@ function connect() {
   ws.onmessage = e => {
     try {
       const alert = JSON.parse(e.data);
-      if (!alert || typeof alert !== "object" || Array.isArray(alert)) return;
-      if (!rememberAlert(alert.id)) return;
+      if (!alert || typeof alert !== "object" || Array.isArray(alert)
+          || typeof alert.id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(alert.id)) return;
+      if (seenAlertIds.has(alert.id)) {
+        sendAcknowledgement(ws, alert.id);
+        return;
+      }
+      if (inFlightAlertIds.has(alert.id)) {
+        acknowledgementTargets.get(alert.id)?.add(ws);
+        return;
+      }
+      inFlightAlertIds.add(alert.id);
+      acknowledgementTargets.set(alert.id, new Set([ws]));
       queue.push(alert);
       next();
     } catch (_) {
@@ -305,7 +335,15 @@ async function next() {
   if (busy) return;
   busy = true;
   while (queue.length) {
-    try { await show(queue.shift()); } catch (e) { console.error(e); }
+    const alert = queue.shift();
+    let displayed = false;
+    try {
+      await show(alert);
+      displayed = true;
+    } catch (e) {
+      console.error(e);
+    }
+    completeAlert(alert, displayed);
     await sleep(600);
   }
   busy = false;
