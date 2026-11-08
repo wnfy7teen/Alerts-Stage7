@@ -601,7 +601,7 @@ def test_cryptopay_lost_create_response_recovers_same_invoice_on_idempotent_retr
 
     monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
     first = donate(client, "cryptopay", key=key)
-    assert first.status_code == 502
+    assert first.status_code == 409
     row = pay.get_by_idem(key)
     assert row["status"] == "created"
     assert row["creation_unknown"] == 1
@@ -745,7 +745,7 @@ def test_cryptopay_recovery_rejects_invoice_amount_or_currency_mismatch(
         return response
 
     monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
-    assert donate(client, "cryptopay", key=key).status_code == 502
+    assert donate(client, "cryptopay", key=key).status_code == 409
     row = pay.get_by_idem(key)
     setattr(fake, "cp_" + field, invalid_value)
     with closing(pay.db()) as db:
@@ -813,7 +813,7 @@ def test_cryptopay_ambiguous_provider_responses_remain_recoverable(
 
     monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
     response = donate(client, "cryptopay", key="z" * 24)
-    assert response.status_code == 502
+    assert response.status_code == 409
     row = pay.get_by_idem("z" * 24)
     assert row["status"] == "created"
     assert row["creation_unknown"] == 1
