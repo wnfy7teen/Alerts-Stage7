@@ -134,6 +134,51 @@ def test_yookassa_partial_refund_webhook_is_verified_and_idempotent(client, fake
     assert journal["items"][0]["refunded_amount"] == 100.0
 
 
+@pytest.mark.parametrize("amount", [0.001, 0.004, 0.00, -1])
+def test_record_refund_rejects_non_positive_rounded_amount(client, amount):
+    did = donate(client, key="r" * 24).json()["donation_id"]
+    with closing(pay.db()) as db:
+        db.execute("UPDATE donations SET status='paid' WHERE id=?", (did,))
+        db.commit()
+
+    assert not pay.record_refund(
+        donation_id=did, provider="yookassa", provider_refund_id="tiny-refund",
+        amount=amount, currency="RUB",
+    )
+    assert pay.get_row(did)["status"] == "paid"
+    with closing(pay.db()) as db:
+        assert db.execute("SELECT COUNT(*) FROM refunds WHERE donation_id=?", (did,)).fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("amount", [300.01, 300.02])
+def test_record_refund_rejects_total_above_original_amount(client, amount):
+    did = donate(client, key="s" * 24).json()["donation_id"]
+    with closing(pay.db()) as db:
+        db.execute("UPDATE donations SET status='paid' WHERE id=?", (did,))
+        db.commit()
+
+    assert not pay.record_refund(
+        donation_id=did, provider="yookassa", provider_refund_id="over-refund",
+        amount=amount, currency="RUB",
+    )
+    assert pay.get_row(did)["status"] == "paid"
+    with closing(pay.db()) as db:
+        assert db.execute("SELECT COUNT(*) FROM refunds WHERE donation_id=?", (did,)).fetchone()[0] == 0
+
+
+def test_record_refund_accepts_exact_original_amount(client):
+    did = donate(client, key="t" * 24).json()["donation_id"]
+    with closing(pay.db()) as db:
+        db.execute("UPDATE donations SET status='paid' WHERE id=?", (did,))
+        db.commit()
+
+    assert pay.record_refund(
+        donation_id=did, provider="yookassa", provider_refund_id="exact-refund",
+        amount=300.00, currency="RUB",
+    )
+    assert pay.get_row(did)["status"] == "refunded"
+
+
 def test_nowpayments_refunded_is_not_recorded_as_failed(client, fake):
     did = donate(client, "nowpayments", key="n" * 24).json()["donation_id"]
     fake.np_status = "finished"
