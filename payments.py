@@ -646,6 +646,18 @@ async def _cp_find_invoice_by_payload(donation_id: str) -> dict | None:
 async def _recover_cryptopay_creation(donation_id: str) -> sqlite3.Row | None:
     """Восстанавливает только однозначно найденный счёт, не создавая новый."""
     now = time.time()
+    existing = get_row(donation_id)
+    if (
+        existing is None
+        or existing["provider"] != "cryptopay"
+        or existing["status"] != "created"
+        or not existing["creation_unknown"]
+        or (
+            existing["creation_checked_at"] is not None
+            and now - existing["creation_checked_at"] < 15
+        )
+    ):
+        return None
     with closing(db()) as c:
         c.execute(
             "UPDATE donations SET creation_checked_at=? "
