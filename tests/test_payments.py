@@ -827,7 +827,7 @@ def test_cryptopay_recovery_does_not_assume_uniqueness_past_scan_cap(monkeypatch
     async def full_pages(method, params=None, post=False):
         calls.append(params["offset"])
         items = [{"payload": "target", "invoice_id": "first"}] if params["offset"] == 0 else []
-        items.extend({"payload": "other", "invoice_id": str(i)} for i in range(999))
+        items.extend({"payload": "other", "invoice_id": str(i)} for i in range(1_000 - len(items)))
         return {"ok": True, "result": {"items": items}}
 
     monkeypatch.setattr(pay, "_cp_call", full_pages)
