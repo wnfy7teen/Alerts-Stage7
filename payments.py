@@ -80,6 +80,10 @@ class PaymentError(Exception):
         self.status = status
 
 
+class PaymentCreationUnknown(Exception):
+    """Провайдер мог создать счёт, но приложение не получило надёжный ответ."""
+
+
 # ───────────────────────── валидация ─────────────────────────
 def _num(x: float) -> str:
     return f"{x:.2f}".rstrip("0").rstrip(".")
@@ -167,11 +171,15 @@ CREATE TABLE IF NOT EXISTS donations(
     idem_key TEXT UNIQUE,
     checkout TEXT,                     -- JSON для повторной выдачи при двойном клике
     created_at REAL NOT NULL,
-    paid_at REAL
+    paid_at REAL,
+    creation_unknown INTEGER NOT NULL DEFAULT 0,
+    creation_checked_at REAL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_donations_provider_txn
     ON donations(provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_donations_status ON donations(status, created_at);
+CREATE INDEX IF NOT EXISTS ix_donations_creation_unknown
+    ON donations(creation_unknown, creation_checked_at);
 CREATE TABLE IF NOT EXISTS refunds(
     id TEXT PRIMARY KEY,
     donation_id TEXT NOT NULL,
@@ -224,6 +232,15 @@ def init_db() -> None:
             c.execute("ALTER TABLE donations RENAME TO donations_legacy")
             c.commit()
         c.executescript(SCHEMA)
+        cols = [r["name"] for r in c.execute("PRAGMA table_info(donations)")]
+        if "creation_unknown" not in cols:
+            c.execute("ALTER TABLE donations ADD COLUMN creation_unknown INTEGER NOT NULL DEFAULT 0")
+        if "creation_checked_at" not in cols:
+            c.execute("ALTER TABLE donations ADD COLUMN creation_checked_at REAL")
+        c.execute(
+            "CREATE INDEX IF NOT EXISTS ix_donations_creation_unknown "
+            "ON donations(creation_unknown, creation_checked_at)"
+        )
         if legacy:
             for r in c.execute("SELECT * FROM donations_legacy").fetchall():
                 status = r["status"] if r["status"] in ("paid", "pending", "expired") else "pending"
@@ -568,9 +585,16 @@ async def _cp_call(method: str, params: dict | None = None, post: bool = False) 
             r = await c.post(f"{CRYPTOPAY_API}/{method}", headers=headers, json=params or {})
         else:
             r = await c.get(f"{CRYPTOPAY_API}/{method}", headers=headers, params=params or {})
-    data = r.json()
-    if not data.get("ok"):
-        raise provider_fail("Crypto Pay " + method, data.get("error"))
+    if method == "createInvoice" and r.status_code >= 500:
+        raise PaymentCreationUnknown(f"HTTP {r.status_code}")
+    try:
+        data = r.json()
+    except ValueError as exc:
+        if method == "createInvoice":
+            raise PaymentCreationUnknown("invalid JSON response") from exc
+        raise
+    if not isinstance(data, dict) or not data.get("ok"):
+        raise provider_fail("Crypto Pay " + method, data.get("error") if isinstance(data, dict) else "invalid response")
     return data
 
 
@@ -578,17 +602,95 @@ async def _cp_create(donation_id: str, amount: float, currency: str, assets: str
     params: dict = {
         "currency_type": "fiat", "fiat": currency, "amount": f"{amount:.2f}",
         "description": "Донат стримеру", "allow_comments": False, "expires_in": 3600,
+        "payload": donation_id,
     }
     if assets.strip():
         params["accepted_assets"] = assets.replace(" ", "")
     if PUBLIC_URL.startswith("https://"):  # адрес только из настроек сервера, не от клиента
         params.update(paid_btn_name="callback", paid_btn_url=f"{PUBLIC_URL}/?donation={donation_id}")
-    inv = (await _cp_call("createInvoice", params, post=True))["result"]
-    url = inv.get("bot_invoice_url") or inv.get("pay_url")
+    result = (await _cp_call("createInvoice", params, post=True)).get("result")
+    if not isinstance(result, dict) or not result.get("invoice_id"):
+        raise PaymentCreationUnknown("missing invoice data")
+    checkout = _cp_checkout(result)
+    return str(result["invoice_id"]), checkout
+
+
+def _cp_checkout(invoice: dict) -> dict:
+    url = invoice.get("bot_invoice_url") or invoice.get("pay_url")
     parts = urlsplit(str(url))
-    if parts.scheme != "https" or parts.hostname not in ("t.me", "telegram.me"):  # не отдаём клиенту произвольные ссылки
-        raise provider_fail("Crypto Pay", "неожиданный адрес счёта")
-    return str(inv["invoice_id"]), {"type": "link", "url": url, "label": "Открыть Crypto Bot"}
+    if parts.scheme != "https" or parts.hostname not in ("t.me", "telegram.me"):
+        raise PaymentCreationUnknown("unexpected invoice URL")
+    return {"type": "link", "url": url, "label": "Открыть Crypto Bot"}
+
+
+async def _cp_find_invoice_by_payload(donation_id: str) -> dict | None:
+    """Ищет счёт по payload; ограничивает один проход десятью страницами API."""
+    matches: list[dict] = []
+    page_size = 1000
+    for page in range(10):
+        data = await _cp_call("getInvoices", {"offset": page * page_size, "count": page_size})
+        result = data.get("result")
+        items = result.get("items") if isinstance(result, dict) else result
+        if not isinstance(items, list):
+            raise ValueError("Crypto Pay getInvoices returned invalid items")
+        matches.extend(
+            invoice for invoice in items
+            if isinstance(invoice, dict) and str(invoice.get("payload", "")) == donation_id
+        )
+        if len(matches) > 1:
+            log.error("Crypto Pay: найдено несколько счетов для доната %s", donation_id)
+            return None
+        if len(items) < page_size:
+            break
+    return matches[0] if matches else None
+
+
+async def _recover_cryptopay_creation(donation_id: str) -> sqlite3.Row | None:
+    """Восстанавливает только однозначно найденный счёт, не создавая новый."""
+    now = time.time()
+    with closing(db()) as c:
+        c.execute(
+            "UPDATE donations SET creation_checked_at=? "
+            "WHERE id=? AND provider='cryptopay' AND status='created' AND creation_unknown=1",
+            (now, donation_id),
+        )
+        c.commit()
+    try:
+        invoice = await _cp_find_invoice_by_payload(donation_id)
+    except (PaymentError, httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
+        log.warning("Crypto Pay recovery %s failed: %s", donation_id, type(exc).__name__)
+        return None
+    if invoice is None:
+        return None
+    if (
+        invoice.get("currency_type") not in (None, "fiat")
+        or str(invoice.get("fiat", "")).upper() != str(get_row(donation_id)["currency"]).upper()
+        or not _amount_matches(invoice.get("amount"), get_row(donation_id)["amount"])
+    ):
+        log.error("Crypto Pay: параметры найденного счёта не совпадают с донатом %s", donation_id)
+        return None
+    try:
+        checkout = _cp_checkout(invoice)
+        txn = str(invoice["invoice_id"])
+    except (PaymentCreationUnknown, KeyError, TypeError):
+        log.error("Crypto Pay: найденный счёт %s не содержит безопасных checkout-данных", donation_id)
+        return None
+    try:
+        with closing(db()) as c:
+            cur = c.execute(
+                "UPDATE donations SET provider_txn_id=?, status='pending', checkout=?, "
+                "creation_unknown=0, creation_checked_at=NULL "
+                "WHERE id=? AND provider='cryptopay' AND status='created' "
+                "AND creation_unknown=1 AND provider_txn_id IS NULL",
+                (txn, json.dumps(checkout), donation_id),
+            )
+            c.commit()
+    except sqlite3.IntegrityError:
+        log.error("Crypto Pay: invoice_id %s уже связан с другим донатом", txn)
+        return None
+    if cur.rowcount != 1:
+        return None
+    return get_row(donation_id)
 
 
 async def _cp_verdict(row: sqlite3.Row) -> str:
@@ -858,10 +960,23 @@ async def poll_once(tick: int = 0) -> None:
         # Не переводим платежи с provider_txn_id в expired только по локальному таймеру:
         # провайдер остаётся источником истины, а позднее подтверждение должно быть найдено.
         # Локальный TTL применяем лишь к незавершённым записям, для которых счёт не был создан.
-        c.execute("UPDATE donations SET status='expired' WHERE status='created' "
-                  "AND provider_txn_id IS NULL AND created_at<?", (now - PENDING_TTL,))
+        c.execute(
+            "UPDATE donations SET status='expired' WHERE status='created' "
+            "AND provider_txn_id IS NULL AND creation_unknown=0 AND created_at<?",
+            (now - PENDING_TTL,),
+        )
+        unknown_rows = c.execute(
+            "SELECT id FROM donations WHERE status='created' AND provider='cryptopay' "
+            "AND creation_unknown=1 AND (creation_checked_at IS NULL OR creation_checked_at<=?) "
+            "ORDER BY created_at LIMIT 1",
+            (now - 60,),
+        ).fetchall()
         c.commit()
         rows = c.execute("SELECT * FROM donations WHERE status='pending' AND provider_txn_id IS NOT NULL").fetchall()
+    for item in unknown_rows:
+        recovered = await _recover_cryptopay_creation(item["id"])
+        if recovered:
+            await refresh(recovered)
     for row in rows:
         if now - row["created_at"] > 1200 and tick % 12:  # старше 20 минут — раз в минуту
             continue
@@ -887,9 +1002,12 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
     donation_id = uuid.uuid4().hex
     try:
         with closing(db()) as c:
-            c.execute("INSERT INTO donations(id,amount,currency,status,donor_name,message,provider,idem_key,created_at)"
-                      " VALUES(?,?,?,'created',?,?,?,?,?)",
-                      (donation_id, amount, currency, name, message, method, idem_key, time.time()))
+            c.execute(
+                "INSERT INTO donations(id,amount,currency,status,donor_name,message,provider,idem_key,created_at,creation_unknown) "
+                "VALUES(?,?,?,'created',?,?,?,?,?,?)",
+                (donation_id, amount, currency, name, message, method, idem_key, time.time(),
+                 1 if method == "cryptopay" else 0),
+            )
             c.commit()
     except sqlite3.IntegrityError:  # тот же Idempotency-Key: отдаём прежний результат, а не создаём второй платёж
         with closing(db()) as c:
@@ -904,7 +1022,11 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
         ):
             raise PaymentError("Этот ключ уже использован для другого платежа", 409) from None
         if not row["checkout"]:
-            raise PaymentError("Платёж ещё создаётся, подождите секунду", 409) from None
+            if row["provider"] == "cryptopay" and row["creation_unknown"]:
+                recovered = await _recover_cryptopay_creation(row["id"])
+                if recovered and recovered["checkout"]:
+                    return _stored_response(recovered)
+            raise PaymentError("Результат создания платежа уточняется. Повторно создавать счёт нельзя.", 409) from None
         return _stored_response(row)
 
     try:
@@ -915,9 +1037,22 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
         else:
             txn, checkout = await _cp_create(donation_id, amount, currency, accepted_assets)
     except Exception as e:
-        with closing(db()) as c:
-            c.execute("UPDATE donations SET status='failed' WHERE id=?", (donation_id,))
-            c.commit()
+        if method == "cryptopay" and not isinstance(e, PaymentError):
+            # A timeout, disconnect, malformed response or process-side error may happen
+            # after Crypto Pay has already created the invoice. Keep it recoverable.
+            with closing(db()) as c:
+                c.execute(
+                    "UPDATE donations SET status='created', creation_unknown=1, creation_checked_at=? "
+                    "WHERE id=?", (time.time(), donation_id),
+                )
+                c.commit()
+        else:
+            with closing(db()) as c:
+                c.execute(
+                    "UPDATE donations SET status='failed', creation_unknown=0 WHERE id=?",
+                    (donation_id,),
+                )
+                c.commit()
         if isinstance(e, PaymentError):
             raise
         log.error("Создание платежа %s не удалось: %s", method, type(e).__name__)
@@ -925,8 +1060,11 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
 
     try:
         with closing(db()) as c:
-            c.execute("UPDATE donations SET provider_txn_id=?, status='pending', checkout=? WHERE id=?",
-                      (txn, json.dumps(checkout), donation_id))
+            c.execute(
+                "UPDATE donations SET provider_txn_id=?, status='pending', checkout=?, "
+                "creation_unknown=0, creation_checked_at=NULL WHERE id=?",
+                (txn, json.dumps(checkout), donation_id),
+            )
             c.commit()
     except sqlite3.IntegrityError:  # провайдер вернул уже известный номер платежа — второй раз не засчитываем
         with closing(db()) as c:
