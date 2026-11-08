@@ -31,7 +31,10 @@ def validate(archive, root):
                     shutil.copyfileobj(source, output)
     manifest=json.loads((root/"manifest.json").read_text())
     for name, expected in manifest["sha256"].items():
-        p=root/name
+        relative = Path(name)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError("Unsafe manifest path")
+        p=root/relative
         if not p.is_file() or digest(p)!=expected: raise ValueError(f"Checksum mismatch: {name}")
     with closing(sqlite3.connect(root/"donations.db")) as db:
         if db.execute("PRAGMA integrity_check").fetchone()[0]!="ok": raise ValueError("SQLite integrity check failed")
