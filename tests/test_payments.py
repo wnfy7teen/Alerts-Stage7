@@ -792,3 +792,30 @@ def test_cryptopay_recovery_refuses_multiple_invoices_with_same_payload(client, 
     assert current["creation_unknown"] == 1
     assert current["provider_txn_id"] is None
     assert fake.cp_create_calls == 1
+
+
+
+@pytest.mark.parametrize(
+    "provider_response",
+    [
+        httpx.Response(500, json={"ok": False, "error": {"name": "INTERNAL_ERROR"}}),
+        httpx.Response(200, content=b"not-json"),
+        httpx.Response(200, json={"ok": True, "result": {}}),
+    ],
+)
+def test_cryptopay_ambiguous_provider_responses_remain_recoverable(
+    client, fake, monkeypatch, provider_response
+):
+    def handler(request):
+        if request.url.path.endswith("/createInvoice"):
+            return provider_response
+        return fake.handler(request)
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    response = donate(client, "cryptopay", key="z" * 24)
+    assert response.status_code == 502
+    row = pay.get_by_idem("z" * 24)
+    assert row["status"] == "created"
+    assert row["creation_unknown"] == 1
+    assert row["provider_txn_id"] is None
+    assert row["checkout"] is None
