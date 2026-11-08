@@ -328,7 +328,11 @@ def test_provider_errors_are_not_exposed(client, fake, monkeypatch):
 def test_cryptopay_link_must_be_telegram(client, fake, monkeypatch):
     route_through(monkeypatch, fake, lambda r: httpx.Response(200, json={"ok": True, "result": {
         "invoice_id": 9, "bot_invoice_url": "https://evil.example/phish"}}) if "createInvoice" in str(r.url) else None)
-    assert donate(client, "cryptopay").status_code == 502
+    response = donate(client, "cryptopay")
+    assert response.status_code == 409
+    assert "evil.example" not in response.text
+    row = pay.get_by_idem("k" * 24)
+    assert row["status"] == "created" and row["creation_unknown"] == 1
 
 
 def test_no_personal_data_in_logs(client, fake, caplog):

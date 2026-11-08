@@ -6,6 +6,7 @@ import os
 import sqlite3
 from contextlib import closing
 
+import httpx
 import pytest
 
 import payments as pay
@@ -586,3 +587,235 @@ def test_admin_audit_is_protected_and_records_safe_actions(client):
     assert all(item["actor"] == "admin" for item in data["items"])
     assert "Do not persist this message" not in response.text
     assert client.get("/api/admin/audit").status_code == 401
+
+
+
+def test_cryptopay_lost_create_response_recovers_same_invoice_on_idempotent_retry(client, fake, monkeypatch):
+    key = "c" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("response lost after provider created invoice", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    first = donate(client, "cryptopay", key=key)
+    assert first.status_code == 409
+    row = pay.get_by_idem(key)
+    assert row["status"] == "created"
+    assert row["creation_unknown"] == 1
+    assert row["provider_txn_id"] is None
+    assert fake.cp_create_calls == 1
+
+    # Пока cooldown не истёк, повторный запрос не должен создавать новый invoice.
+    immediate_retry = donate(client, "cryptopay", key=key)
+    assert immediate_retry.status_code == 409
+    assert fake.cp_create_calls == 1
+
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 20, row["id"]),
+        )
+        db.commit()
+
+    second = donate(client, "cryptopay", key=key)
+    assert second.status_code == 200, second.text
+    assert second.json()["donation_id"] == row["id"]
+    assert second.json()["checkout"]["url"].startswith("https://t.me/")
+    recovered = pay.get_row(row["id"])
+    assert recovered["status"] == "pending"
+    assert recovered["provider_txn_id"] == "555"
+    assert recovered["creation_unknown"] == 0
+    assert fake.cp_create_calls == 1
+
+
+def test_cryptopay_unknown_creation_is_not_expired_by_local_ttl(client, fake, monkeypatch):
+    key = "d" * 24
+
+    def handler(request):
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ConnectTimeout("provider connection timed out", request=request)
+        return fake.handler(request)
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    first = donate(client, "cryptopay", key=key)
+    assert first.status_code == 409
+    row = pay.get_by_idem(key)
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET created_at=?, creation_checked_at=? WHERE id=?",
+            (pay.time.time() - pay.PENDING_TTL - 120, pay.time.time() - 120, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    current = pay.get_row(row["id"])
+    assert current["status"] == "created"
+    assert current["creation_unknown"] == 1
+    assert current["provider_txn_id"] is None
+    assert fake.cp_create_calls == 0
+
+
+def test_cryptopay_explicit_provider_rejection_is_final_failure(client, fake, monkeypatch):
+    def handler(request):
+        if request.url.path.endswith("/createInvoice"):
+            return httpx.Response(200, json={"ok": False, "error": {"name": "BAD_REQUEST"}})
+        return fake.handler(request)
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    response = donate(client, "cryptopay", key="e" * 24)
+    assert response.status_code == 502
+    row = pay.get_by_idem("e" * 24)
+    assert row["status"] == "failed"
+    assert row["creation_unknown"] == 0
+
+
+
+def test_cryptopay_lost_response_is_reconciled_by_poller_and_paid_once(client, fake, monkeypatch):
+    key = "p" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("provider response was lost", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    first = donate(client, "cryptopay", key=key)
+    assert first.status_code == 409
+    row = pay.get_by_idem(key)
+    fake.cp_status = "paid"
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 61, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    recovered = pay.get_row(row["id"])
+    assert recovered["status"] == "paid"
+    assert recovered["provider_txn_id"] == "555"
+    assert recovered["creation_unknown"] == 0
+    assert fake.cp_create_calls == 1
+    assert len(fake.alerts) == 1
+
+
+def test_existing_donations_schema_migrates_creation_recovery_columns(tmp_path, monkeypatch):
+    monkeypatch.setattr(pay, "DB_PATH", tmp_path / "existing.db")
+    with closing(sqlite3.connect(pay.DB_PATH)) as db:
+        db.execute(
+            "CREATE TABLE donations("
+            "id TEXT PRIMARY KEY, amount REAL NOT NULL, currency TEXT NOT NULL, status TEXT NOT NULL, "
+            "donor_name TEXT NOT NULL, message TEXT NOT NULL, provider TEXT NOT NULL, provider_txn_id TEXT, "
+            "idem_key TEXT UNIQUE, checkout TEXT, created_at REAL NOT NULL, paid_at REAL)"
+        )
+        db.execute(
+            "INSERT INTO donations(id,amount,currency,status,donor_name,message,provider,created_at) "
+            "VALUES('existing',100,'RUB','failed','Test','Message','cryptopay',1)"
+        )
+        db.commit()
+
+    pay.init_db()
+    with closing(pay.db()) as db:
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(donations)")}
+        row = db.execute("SELECT creation_unknown, creation_checked_at FROM donations WHERE id='existing'").fetchone()
+    assert "creation_unknown" in columns
+    assert "creation_checked_at" in columns
+    assert row["creation_unknown"] == 0
+    assert row["creation_checked_at"] is None
+
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [("amount", "299.99"), ("fiat", "USD")],
+)
+def test_cryptopay_recovery_rejects_invoice_amount_or_currency_mismatch(
+    client, fake, monkeypatch, field, invalid_value
+):
+    key = "m" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("response lost", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    assert donate(client, "cryptopay", key=key).status_code == 409
+    row = pay.get_by_idem(key)
+    setattr(fake, "cp_" + field, invalid_value)
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 61, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    current = pay.get_row(row["id"])
+    assert current["status"] == "created"
+    assert current["creation_unknown"] == 1
+    assert current["provider_txn_id"] is None
+    assert fake.alerts == []
+    assert fake.cp_create_calls == 1
+
+
+def test_cryptopay_recovery_refuses_multiple_invoices_with_same_payload(client, fake, monkeypatch):
+    key = "u" * 24
+
+    def handler(request):
+        response = fake.handler(request)
+        if request.url.path.endswith("/createInvoice"):
+            raise httpx.ReadTimeout("response lost", request=request)
+        return response
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    assert donate(client, "cryptopay", key=key).status_code == 409
+    row = pay.get_by_idem(key)
+    duplicate = dict(fake.cp_invoices[0])
+    duplicate["invoice_id"] = 556
+    fake.cp_invoices.append(duplicate)
+    with closing(pay.db()) as db:
+        db.execute(
+            "UPDATE donations SET creation_checked_at=? WHERE id=?",
+            (pay.time.time() - 61, row["id"]),
+        )
+        db.commit()
+
+    asyncio.run(pay.poll_once(12))
+    current = pay.get_row(row["id"])
+    assert current["status"] == "created"
+    assert current["creation_unknown"] == 1
+    assert current["provider_txn_id"] is None
+    assert fake.cp_create_calls == 1
+
+
+
+@pytest.mark.parametrize(
+    "provider_response",
+    [
+        httpx.Response(500, json={"ok": False, "error": {"name": "INTERNAL_ERROR"}}),
+        httpx.Response(200, content=b"not-json"),
+        httpx.Response(200, json={"ok": True, "result": {}}),
+    ],
+)
+def test_cryptopay_ambiguous_provider_responses_remain_recoverable(
+    client, fake, monkeypatch, provider_response
+):
+    def handler(request):
+        if request.url.path.endswith("/createInvoice"):
+            return provider_response
+        return fake.handler(request)
+
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    response = donate(client, "cryptopay", key="z" * 24)
+    assert response.status_code == 409
+    row = pay.get_by_idem("z" * 24)
+    assert row["status"] == "created"
+    assert row["creation_unknown"] == 1
+    assert row["provider_txn_id"] is None
+    assert row["checkout"] is None

@@ -1,5 +1,6 @@
 """Общие помощники для тестов: имитация провайдеров и отправка доната."""
 import json
+from urllib.parse import parse_qs
 
 import httpx
 
@@ -16,6 +17,7 @@ class Fake:
         self.np_status, self.np_price, self.np_price_currency = "waiting", 300, "rub"
         self.cp_status, self.cp_amount, self.cp_fiat = "active", "300.00", "RUB"
         self.yk_created, self.np_created, self.alerts = [], [], []
+        self.cp_invoices, self.cp_create_calls = [], 0
         self.yk_refund_data = None
 
     def handler(self, request: httpx.Request) -> httpx.Response:
@@ -40,12 +42,29 @@ class Fake:
             return httpx.Response(200, json={"payment_id": 777, "payment_status": self.np_status,
                                              "order_id": self.np_created[0]["order_id"], "price_amount": self.np_price,
                                              "price_currency": self.np_price_currency})
-        if url == "https://testnet-pay.crypt.bot/api/createInvoice":
-            return httpx.Response(200, json={"ok": True, "result": {"invoice_id": 555,
-                                             "bot_invoice_url": "https://t.me/CryptoTestnetBot?start=IVx"}})
+        if url == "https://testnet-pay.crypt.bot/api/createInvoice" and method == "POST":
+            params = json.loads(request.content)
+            self.cp_create_calls += 1
+            invoice = {
+                "invoice_id": 555, "status": self.cp_status, "amount": self.cp_amount,
+                "fiat": self.cp_fiat, "currency_type": "fiat", "payload": params.get("payload"),
+                "bot_invoice_url": "https://t.me/CryptoTestnetBot?start=IVx",
+            }
+            self.cp_invoices.append(invoice)
+            return httpx.Response(200, json={"ok": True, "result": invoice})
         if url.startswith("https://testnet-pay.crypt.bot/api/getInvoices"):
-            return httpx.Response(200, json={"ok": True, "result": {"items": [
-                {"invoice_id": 555, "status": self.cp_status, "amount": self.cp_amount, "fiat": self.cp_fiat}]}})
+            query = parse_qs(request.url.query.decode())
+            invoice_ids = set(query.get("invoice_ids", [""])[0].split(",")) - {""}
+            items = self.cp_invoices
+            if invoice_ids:
+                items = [item for item in items if str(item["invoice_id"]) in invoice_ids]
+            items = [
+                {**item, "status": self.cp_status, "amount": self.cp_amount, "fiat": self.cp_fiat}
+                for item in items
+            ]
+            offset = int(query.get("offset", ["0"])[0])
+            count = int(query.get("count", ["100"])[0])
+            return httpx.Response(200, json={"ok": True, "result": {"items": items[offset:offset + count]}})
         return httpx.Response(404, json={"error": "unexpected " + url})
 
 

@@ -47,6 +47,9 @@ def client(fake):
     import payments as pay
     import server
 
+    # Each test starts from a clean config; one test must not leak admin edits into another.
+    server._cfg = None
+    server.CFG_PATH.unlink(missing_ok=True)
     with TestClient(server.app) as c:
         server.load_cfg().tts_enabled = False  # без обращения к серверам озвучки
         with closing(pay.db()) as db:
