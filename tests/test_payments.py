@@ -140,7 +140,7 @@ def test_refund_amount_that_rounds_to_zero_is_rejected(client):
         donation_id=did, provider="yookassa", provider_refund_id="rf-subcent",
         amount=0.004, currency="RUB",
     )
-    assert pay.get_row(did)["status"] == "created"
+    assert pay.get_row(did)["status"] == "pending"
     journal = pay.list_transactions()
     assert journal["items"][0]["refund_count"] == 0
 
