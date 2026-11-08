@@ -640,6 +640,11 @@ async def _cp_find_invoice_by_payload(donation_id: str) -> dict | None:
             return None
         if len(items) < page_size:
             break
+    else:
+        # A full final page means there may be older invoices outside our scan.
+        # We cannot prove that the match is unique, so leave the donation unresolved.
+        log.warning("Crypto Pay: достигнут предел поиска счетов для доната %s", donation_id)
+        return None
     return matches[0] if matches else None
 
 
