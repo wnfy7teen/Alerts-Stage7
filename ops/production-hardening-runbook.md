@@ -38,8 +38,8 @@ Production releases verified through GitHub Actions:
 For PR #96, the deploy job created a pre-deploy snapshot at `/var/backups/donation-alerts-deploy/pre-deploy-20261108T183151Z.tar.gz`, applied commit `d7b2752a328070d4d1df224cae4b3f2b30e49032`, restarted the app, and verified both domains, health JSON and SEO endpoints. A transient initial 502 was retried; final checks passed. The workflow is the deployment evidence; do not infer any additional operational setup from repository artifacts.
 
 Run non-financial smoke checks when investigating production:
-   - `curl -fsS https://[DOMAIN]/api/health`
-   - `curl -fsSL -o /dev/null -w '%{http_code}\n' https://[DOMAIN]/`
+   - `curl -fsS https://vanesso4ka.site/api/health`
+   - `curl -fsSL -o /dev/null -w '%{http_code}\n' https://vanesso4ka.site/`
    - `systemctl is-active donation-alerts.service`
    - `journalctl -u donation-alerts.service --since '-10 min' --no-pager`
 7. Refund regression smoke must run in provider sandbox/staging only: create sandbox payment → refund full amount → send the same refund event again → send a distinct late refund event → verify status remains `refunded`, exactly one accepted refund row per provider refund ID, and cumulative amount does not exceed original amount. Never run this against a real donor payment.
@@ -107,7 +107,7 @@ The script expects an rclone **crypt remote** named by `REMOTE_PATH`; configure 
 Example `/etc/donation-alerts-remote-backup.env` (replace placeholders):
 ```ini
 BACKUP_DIR=[BACKUP_DIR]
-PROJECT_PATH=[PROJECT_PATH]
+PROJECT_PATH=/opt/donation-alerts
 BACKUP_MAX_AGE_SECONDS=172800
 REMOTE_PATH=donation-backups-crypt:donation-alerts
 RCLONE_CONFIG=/etc/rclone/rclone.conf
@@ -124,8 +124,8 @@ Configure rclone:
 ```bash
 install -o root -g root -m 600 /dev/null /etc/donation-alerts-remote-backup.env
 # Populate with the values above using a secure editor; do not paste credentials into shell history.
-install -o root -g root -m 644 [PROJECT_PATH]/ops/systemd/donation-alerts-remote-backup.service /etc/systemd/system/
-install -o root -g root -m 644 [PROJECT_PATH]/ops/systemd/donation-alerts-remote-backup.timer /etc/systemd/system/
+install -o root -g root -m 644 /opt/donation-alerts/ops/systemd/donation-alerts-remote-backup.service /etc/systemd/system/
+install -o root -g root -m 644 /opt/donation-alerts/ops/systemd/donation-alerts-remote-backup.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now donation-alerts-remote-backup.timer
 systemctl start donation-alerts-remote-backup.service
@@ -137,7 +137,7 @@ journalctl -u donation-alerts-remote-backup.service -n 50 --no-pager
 Never restore over production as part of a drill. Copy a selected archive to a test location and run:
 ```bash
 install -d -m 700 [RESTORE_PARENT]
-[PROJECT_PATH]/venv/bin/python [PROJECT_PATH]/scripts/restore_drill.py \
+/opt/donation-alerts/venv/bin/python /opt/donation-alerts/scripts/restore_drill.py \
   [BACKUP_DIR]/[ARCHIVE].tar.gz [RESTORE_PARENT]/restore-$(date +%Y%m%d-%H%M%S)
 ```
 The destination must not already exist. The script rejects unsafe archive members, verifies manifest hashes, runs SQLite integrity check, validates JSON config and reports media file count. Afterward, inspect files and run the application against the restored DB only in a separate staging unit with isolated ports and credentials. This runbook does not claim that a restore drill has already been executed.
@@ -161,17 +161,17 @@ On a staging VPS, reboot in a maintenance window, then verify service active, lo
 
 | Check | How to verify | Expected | Fix if not |
 |---|---|---|---|
-| Admin authentication | `curl -i https://[DOMAIN]/admin` without credentials; inspect `ADMIN_PASSWORD` presence/length in root-only env without printing it | 401; strong unique password; TLS only | Rotate password via secure env editor; restart service; restrict admin IP CIDRs if operationally possible |
+| Admin authentication | `curl -i https://vanesso4ka.site/admin` without credentials; inspect `ADMIN_PASSWORD` presence/length in root-only env without printing it | 401; strong unique password; TLS only | Rotate password via secure env editor; restart service; restrict admin IP CIDRs if operationally possible |
 | Session model | Review `server.py`: admin currently uses HTTP Basic, not server-side sessions | Browser sends credentials on each request; no session cookie to revoke | Document this explicitly; if migrating to sessions, use secure HttpOnly SameSite cookies, CSRF token, expiry and logout/revocation |
 | Brute force | Test repeated wrong password from staging IP | 10 failures/15 min per process returns 429 | Add persistent/shared limiter at reverse proxy if multiple workers or restarts are possible |
 | CSRF | POST/PUT admin mutation without custom header or with foreign Origin | 403; same-origin mutation succeeds | Keep `csrf_guard` on every state-changing admin route |
 | XSS | Review admin/public JS for `innerHTML`; test donor text containing HTML/script in staging | Render via `textContent`/safe templates; CSP nonce | Replace unsafe HTML insertion; sanitize at boundary and encode output |
 | SQL injection | Review SQL calls and test quote/wildcard payloads in staging | Parameterized SQL; no string interpolation for values | Parameterize every value; whitelist sort/filter identifiers |
 | Rate limiting | Verify API/webhook/admin limiters and nginx limits | 429 at configured thresholds | Add shared edge rate limit for multi-process deployments |
-| Python dependencies | `[PROJECT_PATH]/venv/bin/pip-audit -r [PROJECT_PATH]/requirements.txt` and dev/e2e requirements | No known vulnerable pinned/transitive packages; report retained | Upgrade in branch, run tests, PR, deploy |
+| Python dependencies | `/opt/donation-alerts/venv/bin/pip-audit -r /opt/donation-alerts/requirements.txt` and dev/e2e requirements | No known vulnerable pinned/transitive packages; report retained | Upgrade in branch, run tests, PR, deploy |
 | Nginx | `nginx -t`; inspect active server blocks; verify TLS, HTTP/2/3 policy, websocket map, body/timeouts, no exposed upstream port | Syntax valid; 80 redirects to 443; app bound to localhost; correct websocket Upgrade map | Back up config before edits; test config; reload only after successful `nginx -t` |
 | Secret files | `git check-ignore -v .env`; `git ls-files | grep -E '(^|/)(\.env|.*\.pem|.*\.key|.*\.db|.*\.sqlite)' ` | No live env, private keys, DB or backups tracked | Add ignore rules; rotate any exposed secret immediately |
-| Secret history | Run `gitleaks git [GITHUB_REPO]` on a secured clone and scan all refs/history | No credential findings | Rotate first; then purge history only under incident procedure; a new commit does not erase leaked secrets |
+| Secret history | Run `gitleaks git /path/to/secured/Alerts-Stage7-clone` on a secured clone and scan all refs/history | No credential findings | Rotate first; then purge history only under incident procedure; a new commit does not erase leaked secrets |
 | Logs / Sentry | Review logger calls and Sentry scrubber; inspect a sample redacted event | No Authorization headers, webhook signatures, tokens, passwords, donor messages or query secrets | Log exception class/provider/status only; scrub request body/headers/query; disable body capture |
 | Backups | Inspect archive manifest and file mode; inspect encrypted remote with rclone cryptcheck | No .env/provider keys; local archive 0600; remote encrypted | Keep secrets in a separate password manager/secret store; rotate if included in old backups |
 
@@ -192,10 +192,10 @@ On a staging VPS, reboot in a maintenance window, then verify service active, lo
 
 Example `/etc/donation-alerts-healthcheck.env`:
 ```ini
-BASE_URL=https://[DOMAIN]
+BASE_URL=https://vanesso4ka.site
 SERVICE_NAME=donation-alerts.service
 BACKUP_STATUS=[BACKUP_STATUS_PATH]
-DB_PATH=[DB_PATH]
+DB_PATH=/var/lib/donation-alerts/donations.db
 MIN_FREE_KB=1048576
 MIN_MEM_AVAILABLE_KB=262144
 BACKUP_MAX_AGE_SECONDS=172800
@@ -208,9 +208,9 @@ Set owner root/mode 0600. Install:
 ```bash
 install -o root -g root -m 600 /dev/null /etc/donation-alerts-healthcheck.env
 # Populate securely; never commit this file.
-install -o root -g root -m 755 [PROJECT_PATH]/scripts/healthcheck.sh /usr/local/sbin/donation-alerts-healthcheck
-install -o root -g root -m 644 [PROJECT_PATH]/ops/systemd/donation-alerts-healthcheck.service /etc/systemd/system/
-install -o root -g root -m 644 [PROJECT_PATH]/ops/systemd/donation-alerts-healthcheck.timer /etc/systemd/system/
+install -o root -g root -m 755 /opt/donation-alerts/scripts/healthcheck.sh /usr/local/sbin/donation-alerts-healthcheck
+install -o root -g root -m 644 /opt/donation-alerts/ops/systemd/donation-alerts-healthcheck.service /etc/systemd/system/
+install -o root -g root -m 644 /opt/donation-alerts/ops/systemd/donation-alerts-healthcheck.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now donation-alerts-healthcheck.timer
 systemctl start donation-alerts-healthcheck.service
