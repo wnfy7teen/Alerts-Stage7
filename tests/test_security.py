@@ -326,6 +326,24 @@ def test_provider_errors_are_not_exposed(client, fake, monkeypatch):
     assert r.status_code == 502 and r.json()["detail"] == pay.GENERIC_FAIL and "shop" not in r.text
 
 
+def test_cryptopay_create_rejects_invoice_with_wrong_payload(client, fake, monkeypatch):
+    def wrong_payload(request):
+        response = fake.handler(request)
+        if "createInvoice" in str(request.url) and response.status_code == 200:
+            data = response.json()
+            data["result"]["payload"] = "another-donation"
+            return httpx.Response(200, json=data)
+        return response
+
+    import payments as pay
+    monkeypatch.setattr(pay, "HTTP_TRANSPORT", httpx.MockTransport(wrong_payload))
+    response = donate(client, "cryptopay")
+    assert response.status_code == 409
+    row = pay.get_by_idem("k" * 24)
+    assert row["status"] == "created" and row["creation_unknown"] == 1
+    assert row["provider_txn_id"] is None and row["checkout"] is None
+
+
 def test_cryptopay_link_must_be_telegram(client, fake, monkeypatch):
     route_through(monkeypatch, fake, lambda r: httpx.Response(200, json={"ok": True, "result": {
         "invoice_id": 9, "bot_invoice_url": "https://evil.example/phish"}}) if "createInvoice" in str(r.url) else None)
