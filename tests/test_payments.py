@@ -109,6 +109,14 @@ def test_yookassa_webhook_credits_once(client, fake):
     assert client.post("/api/webhooks/yookassa", json=hook).status_code == 200
     assert len(fake.alerts) == 1 and fake.alerts[0]["title"].startswith("Вася")
     assert client.get(f"/api/payments/status/{did}").json()["status"] == "paid"
+    with closing(pay.db()) as db:
+        events = db.execute(
+            "SELECT provider, event_type, donation_id, result FROM webhook_events"
+        ).fetchall()
+        assert len(events) == 1
+        assert tuple(events[0]) == ("yookassa", "payment.succeeded", did, "processed")
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(webhook_events)")}
+        assert "payload" not in columns and "signature" not in columns
 
 
 def test_concurrent_duplicate_yookassa_webhooks_credit_once(client, fake):
@@ -124,6 +132,7 @@ def test_concurrent_duplicate_yookassa_webhooks_credit_once(client, fake):
     assert len(fake.alerts) == 1
     with closing(pay.db()) as db:
         assert db.execute("SELECT COUNT(*) FROM alert_outbox WHERE donation_id=?", (did,)).fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM webhook_events WHERE provider='yookassa'").fetchone()[0] == 1
 
 
 def test_concurrent_duplicate_refund_id_is_recorded_once(client):
