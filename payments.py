@@ -755,13 +755,20 @@ async def _yk_create(donation_id: str, amount: float, currency: str) -> tuple[st
     async with _client() as c:
         r = await c.post(f"{YK_API}/payments", json=body, auth=(YK_SHOP_ID, YK_SECRET),
                          headers={"Idempotence-Key": donation_id})
-    data = r.json()
+    try:
+        data = r.json()
+    except (ValueError, TypeError) as exc:
+        raise PaymentCreationUnknown("ЮKassa вернула некорректный JSON") from exc
+    if r.status_code >= 500:
+        log.error("ЮKassa create returned ambiguous HTTP %s", r.status_code)
+        raise PaymentCreationUnknown("ЮKassa HTTP 5xx")
     if r.status_code >= 300:
         raise provider_fail("ЮKassa", data.get("description") or r.status_code)
     token = (data.get("confirmation") or {}).get("confirmation_token")
-    if not token:
-        raise provider_fail("ЮKassa", "нет confirmation_token")
-    return data["id"], {
+    payment_id = data.get("id")
+    if not isinstance(payment_id, str) or not payment_id or not isinstance(token, str) or not token:
+        raise PaymentCreationUnknown("ЮKassa вернула неполные данные платежа")
+    return payment_id, {
         "type": "widget", "confirmation_token": token,
         "return_url": f"{PUBLIC_URL}/?donation={donation_id}",  # только из настроек сервера
     }
@@ -1040,7 +1047,7 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
                 "INSERT INTO donations(id,amount,currency,status,donor_name,message,provider,idem_key,created_at,creation_unknown) "
                 "VALUES(?,?,?,'created',?,?,?,?,?,?)",
                 (donation_id, amount, currency, name, message, method, idem_key, time.time(),
-                 1 if method == "cryptopay" else 0),
+                 1 if method in ("cryptopay", "yookassa", "nowpayments") else 0),
             )
             c.commit()
     except sqlite3.IntegrityError:  # тот же Idempotency-Key: отдаём прежний результат, а не создаём второй платёж
@@ -1073,9 +1080,14 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
         else:
             txn, checkout = await _cp_create(donation_id, amount, currency, accepted_assets)
     except Exception as e:
-        if method == "cryptopay" and not isinstance(e, PaymentError):
-            # A timeout, disconnect, malformed response or process-side error may happen
-            # after Crypto Pay has already created the invoice. Keep it recoverable.
+        ambiguous_creation = (
+            isinstance(e, PaymentCreationUnknown)
+            or (method in ("yookassa", "nowpayments") and not isinstance(e, PaymentError))
+            or (method == "cryptopay" and not isinstance(e, PaymentError))
+        )
+        if ambiguous_creation:
+            # A timeout, disconnect, HTTP 5xx, malformed response or process-side error
+            # may happen after the provider has already created the payment.
             with closing(db()) as c:
                 c.execute(
                     "UPDATE donations SET status='created', creation_unknown=1, creation_checked_at=? "
@@ -1092,9 +1104,9 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
         if isinstance(e, PaymentError):
             raise
         log.error("Создание платежа %s не удалось: %s", method, type(e).__name__)
-        if method == "cryptopay":
+        if ambiguous_creation:
             raise PaymentError(
-                "Проверяем результат создания счёта. Повторите попытку через несколько секунд; новый счёт не создаётся.",
+                "Результат создания платежа уточняется. Повторно создавать счёт нельзя.",
                 409,
             ) from None
         raise PaymentError(GENERIC_FAIL, 502) from None

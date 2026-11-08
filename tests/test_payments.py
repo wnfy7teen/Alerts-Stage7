@@ -873,3 +873,47 @@ def test_cryptopay_recovery_does_not_assume_uniqueness_past_scan_cap(monkeypatch
     monkeypatch.setattr(pay, "_cp_call", full_pages)
     assert asyncio.run(pay._cp_find_invoice_by_payload("target")) is None
     assert calls == list(range(0, 10_000, 1_000))
+
+
+@pytest.mark.parametrize("provider", ["yookassa", "nowpayments"])
+@pytest.mark.parametrize("failure", ["timeout", "unknown_response"])
+def test_ambiguous_provider_creation_is_never_marked_failed(
+    client, monkeypatch, provider, failure
+):
+    calls = []
+
+    async def ambiguous(*args, **kwargs):
+        calls.append((args, kwargs))
+        if failure == "timeout":
+            request = httpx.Request("POST", "https://provider.example/payment")
+            raise httpx.ReadTimeout("provider response lost", request=request)
+        raise pay.PaymentCreationUnknown("provider response is incomplete")
+
+    monkeypatch.setattr(pay, "_yk_create" if provider == "yookassa" else "_np_create", ambiguous)
+    key = (provider + failure).ljust(24, "x")[:24]
+    first = donate(client, provider, key=key)
+    assert first.status_code == 409
+    row = pay.get_by_idem(key)
+    assert row["status"] == "created"
+    assert row["creation_unknown"] == 1
+    assert row["provider_txn_id"] is None
+    assert row["checkout"] is None
+
+    # Повторный запрос с тем же ключом не создаёт второй платёж.
+    again = donate(client, provider, key=key)
+    assert again.status_code == 409
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("provider", ["yookassa", "nowpayments"])
+def test_definite_provider_rejection_is_final_failure(client, monkeypatch, provider):
+    async def rejected(*args, **kwargs):
+        raise pay.PaymentError("provider rejected request", 400)
+
+    monkeypatch.setattr(pay, "_yk_create" if provider == "yookassa" else "_np_create", rejected)
+    key = (provider + "-rejected").ljust(24, "x")[:24]
+    response = donate(client, provider, key=key)
+    assert response.status_code == 400
+    row = pay.get_by_idem(key)
+    assert row["status"] == "failed"
+    assert row["creation_unknown"] == 0
