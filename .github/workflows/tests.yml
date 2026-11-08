@@ -94,6 +94,28 @@ jobs:
             echo "${HOST}: expected developer footer verified."
           done
 
+      - name: Verify public application health endpoint
+        run: |
+          set -euo pipefail
+          for HOST in vanesso4ka.site www.vanesso4ka.site; do
+            URL="https://${HOST}/api/health?deploy_check=${GITHUB_SHA}"
+            OUT="/tmp/health-${HOST}.json"
+            echo "Checking ${URL}"
+            curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 \
+              -H "Cache-Control: no-cache, no-store" \
+              -H "Pragma: no-cache" \
+              "${URL}" -o "${OUT}"
+            python - "${OUT}" "${HOST}" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert payload.get("status") == "ok", f"{sys.argv[2]} health endpoint returned unexpected payload: {payload!r}"
+          print(f"{sys.argv[2]}: application health is ok.")
+          PY
+          done
+
       - name: Verify public SEO endpoints and metadata
         run: |
           set -euo pipefail
