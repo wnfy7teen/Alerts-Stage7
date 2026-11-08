@@ -1,15 +1,20 @@
 # Donation Alerts — Production hardening runbook
 
-Repository: `[GITHUB_REPO]`  
-Production host: `[VPS_HOST]`  
-Application directory: `[PROJECT_PATH]`  
-Persistent data: `[DATA_PATH]`  
-Database: `[DB_PATH]`  
-Backup directory: `[BACKUP_DIR]`
+Repository: `wnfy7teen/Alerts-Stage7`  
+Production host: `csgoidelka.fvds.ru` (Ubuntu 24.04.5 LTS)  
+Application directory: `/opt/donation-alerts`  
+Service account: `donationapp`  
+Persistent data: `/var/lib/donation-alerts`  
+Database: `/var/lib/donation-alerts/donations.db`  
+Configuration: `/var/lib/donation-alerts/config.json`  
+Media: `/var/lib/donation-alerts/media`  
+Deployment rollback snapshots: `/var/backups/donation-alerts-deploy`  
+
+The deployment snapshot directory is not the same as the scheduled application-backup directory. The currently configured local backup timer/path must be checked on the VPS before changing backup automation.
 
 > This document separates verified repository facts from operations that require production access. Never use real payment/refund operations as smoke tests. Use provider sandbox credentials and a staging callback URL.
 
-## 0. PR #88 — terminal refund state
+## 0. Release and verified production state
 
 ### Verified in source
 - `record_refund()` uses `BEGIN IMMEDIATE`, validates provider and currency, and deduplicates on the unique key `(provider, provider_refund_id)`.
@@ -18,11 +23,21 @@ Backup directory: `[BACKUP_DIR]`
 - An HTTP integration test was added: it calls the YooKassa refund webhook for a full refund, then a distinct late refund webhook, and asserts that status, count, and refunded total remain unchanged.
 
 ### Exact release sequence
-1. PR #88 is now merged. Tested head SHA: `e0c69f2912ee4f1e2696b3996d27bffbd77d3d0c`; CI run `42505346624` succeeded (142 tests, including the new HTTP refund regression, plus browser tests).
-2. Merge SHA: `6d46c7fe41631776f22d98edaac09531e4268c3c`.
-3. The production push/deploy workflow result has not been independently confirmed through the available GitHub status interface; do not infer deployment from merge success.
-4. Verify the `push` workflow on `main`; both test job and **Deploy production** job must succeed. A skipped deploy is not a successful deployment.
-5. Run non-financial smoke checks:
+Production releases verified through GitHub Actions:
+
+| Change | Merge SHA | Production workflow | Result |
+|---|---|---|---|
+| PR #88 — terminal refund state | `6d46c7fe41631776f22d98edaac09531e4268c3c` | `42505346624` | Deployed; see workflow history |
+| PR #89 — ops artifacts and dependency audit | `37442a968af7fb818d784846bee165de54cd3b57` | Earlier main workflow | Merged; artifacts in repo do not prove VPS installation |
+| PR #91 — reject refund amounts rounding to zero | `68f32714ef2af7eb07414f85fe3c6603116c7bcd` | `42508660624` | Successful |
+| PR #93 — webhook receipt journal | `b8c93c810a7820ec9e5806c4122771bbfd0db7ff` | `42507842983` | Successful |
+| PR #94 — stronger deploy health checks | `78b04e1e67205540af03a747721c5a74c94cb774` | `42508660624` | Successful |
+| PR #95 — isolate journal write failures | `65d8ad1d342be19ce85df23b08627e62748cebb0` | `42509286019` | Successful |
+| PR #96 — restore-drill security tests | `d7b2752a328070d4d1df224cae4b3f2b30e49032` | `42510286888` | Successful; production deployed and smoke checks passed |
+
+For PR #96, the deploy job created a pre-deploy snapshot at `/var/backups/donation-alerts-deploy/pre-deploy-20261108T183151Z.tar.gz`, applied commit `d7b2752a328070d4d1df224cae4b3f2b30e49032`, restarted the app, and verified both domains, health JSON and SEO endpoints. A transient initial 502 was retried; final checks passed. The workflow is the deployment evidence; do not infer any additional operational setup from repository artifacts.
+
+Run non-financial smoke checks when investigating production:
    - `curl -fsS https://[DOMAIN]/api/health`
    - `curl -fsSL -o /dev/null -w '%{http_code}\n' https://[DOMAIN]/`
    - `systemctl is-active donation-alerts.service`
@@ -45,17 +60,18 @@ Backup directory: `[BACKUP_DIR]`
 | Provider | Authentication / verification | Source finding | Status | Fix / ticket |
 |---|---|---|---|---|
 | YooKassa | YooKassa webhook does not carry an HMAC signature in this implementation. Optional `YOOKASSA_WEBHOOK_IPS` allowlist is checked. The webhook is only a trigger: payment/refund is fetched from YooKassa API using shop credentials; payment metadata donation ID, amount and currency are compared. | Strong API re-verification. IP allowlist is optional; with an empty list, webhook origin is not restricted at the network layer. Refund IDs are validated and provider refund is fetched. | Partially verified in code; production env/IP ranges require host and provider-console review. | P1: configure official YooKassa webhook IP ranges in `YOOKASSA_WEBHOOK_IPS`; add tests for missing/invalid IP list behavior and unknown refund/payment IDs. |
-| NOWPayments | HMAC-SHA512 in `x-nowpayments-sig`, constant-time compare. Canonical sorted compact JSON is supported; raw-body HMAC compatibility is also accepted. Webhook payment ID is used to locate local row; actual status is fetched from provider API and order ID, price amount and currency checked. | Invalid signatures return 403. Duplicate webhook does not directly credit: provider status is re-read and `mark_paid` is conditional. No durable event-ID ledger exists. | Code verified; live credential/callback verification not performed. | P1: persist provider event/delivery ID where available; add replay/concurrency tests; test mismatched payment ID/order ID/price currency. |
-| Crypto Pay | HMAC-SHA256 over raw request body using SHA256(bot token) as key; constant-time compare. Invoice ID maps to local payment; API `getInvoices` is queried and fiat type, amount, fiat currency checked. | Invalid signature returns 403. Signed malformed payload returns 400. No durable event-ID ledger exists; provider invoice ID is unique locally. | Code verified; production token/API status not tested here. | P1: add durable webhook event ledger and replay/concurrency tests; verify bot token and production API reachability from VPS without exposing token. |
+| NOWPayments | HMAC-SHA512 in `x-nowpayments-sig`, constant-time compare. Canonical sorted compact JSON and raw-body HMAC compatibility are supported. The webhook is followed by provider API status verification and local order/amount/currency checks. | Invalid signatures return 403; paid transition remains conditional. A durable receipt journal stores provider, event type, donation ID where known, payload SHA-256, result and received time; it does not store raw body, signature or secrets. | Code and automated tests verified; live provider credentials/callback were not exercised here. | Keep replay/concurrency tests; validate production credentials and callback behavior through non-financial provider checks. |
+| Crypto Pay | HMAC-SHA256 over raw request body using SHA256(bot token) as key; constant-time compare. Invoice ID maps to local payment; API `getInvoices` is queried and fiat type, amount and fiat currency checked. | Invalid signature returns 403; signed malformed payload returns 400. The same durable receipt journal records metadata and payload hash after signature verification; it never persists raw body or token. | Code and automated tests verified; production token/API status was not tested here. | Keep replay/concurrency tests; verify production token/API reachability without exposing credentials. |
 
 ### Cross-provider controls found
 - Unique partial index on `(provider, provider_txn_id)` prevents one provider transaction from being attached to multiple donations.
 - `refunds` has unique `(provider, provider_refund_id)`; `record_refund()` serializes writes using SQLite `BEGIN IMMEDIATE`.
 - `mark_paid()` uses a conditional SQL update and inserts an outbox row in the same DB transaction. The outbox has one row per donation.
 - Amount/currency and provider-specific references are checked in provider verdict functions.
-- NOWPayments and Crypto Pay duplicate events still cause provider API reads; this is safe for crediting but does not give an auditable event-replay ledger.
+- The `payment_webhook_events` table is a webhook receipt/audit journal, not the financial ledger and not a provider event-ID deduplication guarantee. Its unique key is `(provider, payload_sha256)`; stored fields include provider, event type, provider event ID when available, donation ID, payload hash, result and received time. Raw payloads, signatures, tokens and secrets are not stored.
+- `_record_webhook_event_safely()` isolates journal-write failures: a journal database error is logged by exception class and does not prevent provider verification/reconciliation. This behavior is covered by a cross-provider regression test.
 - `mark_paid()` currently permits a provider-confirmed success to move some `failed`, `canceled`, or `expired` rows to `paid`. This may be intentional late-settlement recovery, but it is not an explicit documented state machine. Add a policy + tests before changing it. Never silently block a genuinely settled payment.
-- Refund event IDs are deduplicated, but generic webhook event IDs are not stored. Introduce a `webhook_events` table only after confirming each provider's event-ID semantics and retention.
+- Webhook receipts are recorded by payload hash; do not describe this as exactly-once provider delivery. Repeated payloads can be recognized, while provider reconciliation and idempotent state transitions remain the correctness controls.
 
 ### Required transition policy (proposed)
 - `created → pending` after a provider invoice/payment ID is safely persisted.
@@ -64,13 +80,14 @@ Backup directory: `[BACKUP_DIR]`
 - `refunded` is terminal for additional refund notifications.
 - `failed/canceled/expired → paid` must be treated as a late settlement exception: fetch provider state, record an audit event, and alert staff; do not discard money received. Add explicit transition tests.
 - Provider errors, timeouts, malformed JSON and signature failures must never change a payment status.
-- Review refund amount rounding: `record_refund()` validates positivity before rounding to cents; a positive sub-cent value can quantize to `0.00`. Add a test and reject any amount that rounds to zero.
+- PR #91 added a regression guard: a positive refund amount that rounds to `0.00` is rejected. Keep the test when changing refund normalization.
 - Confirm NOWPayments `payment_status='refunded'` semantics: current polling records a synthetic refund ID with `amount=None` and treats it as a full refund. Verify provider semantics for partial refunds before relying on this path.
 - Review NOWPayments `finished` reconciliation against the provider's actual paid amount fields (where applicable), not only invoice price amount/currency.
 
 ### Staging-only replay/concurrency tests
-- Send identical signed webhook payload concurrently (at least 10 requests); assert one paid transition, one outbox row and one delivered alert ID.
-- Send the same refund ID concurrently; assert one refund row.
+- PR #90 added concurrent duplicate-notification coverage: 12 duplicate payment notifications produce one paid transition and one OBS outbox entry; 12 duplicate refund notifications produce one refund journal record.
+- PR #95 verifies that a webhook-journal database failure does not block verified reconciliation for YooKassa, NOWPayments or Crypto Pay.
+- Keep these tests and add any provider-specific replay scenarios when callback formats change.
 - Send two distinct partial refunds concurrently; assert sum is at most original amount.
 - Send a forged signature, wrong provider payment ID, wrong donation metadata, amount mismatch and currency mismatch; assert no credit.
 - Send out-of-order `pending`, `paid`, `refunded` provider states; assert policy above.
@@ -162,7 +179,7 @@ On a staging VPS, reboot in a maintenance window, then verify service active, lo
 - Admin currently uses HTTP Basic with a constant-time password comparison and an in-memory per-process failure limiter. This is not a session-based login system.
 - State-changing admin routes are grouped under `ADMIN = [Depends(admin), Depends(sec.csrf_guard)]`; verify every mutation route uses this dependency.
 - CSP nonce and common security headers are implemented. Verify whether CSP is enforced or report-only via `CSP_REPORT_ONLY`.
-- `.gitignore` on `main` excludes `.env`, virtual environments and common local DB names. PR #89 adds explicit rules for `.env.*`, project DB files, SQLite WAL files and backup archives; these rules are not active on `main` until PR #89 is merged. Scan tracked files/history separately.
+- PR #89 is merged. `.gitignore` includes explicit exclusions for `.env.*`, project DB files, SQLite WAL files and backup archives. This does not replace a tracked-file or full-history secret scan.
 - Sentry scrubber removes request headers/body and query strings, but ordinary application logs still need a separate audit; `provider_fail()` currently logs a truncated provider detail, which must be reviewed for token/PII leakage.
 - Dependency audit and full git-history secret scan have not been run from a secured checkout in this task.
 
@@ -237,9 +254,9 @@ FROM admin_audit ORDER BY id DESC LIMIT 100;
 - `admin_audit` and `record_admin_action()` already exist; configuration changes, media uploads, test alerts and alert replays record events. The actor is currently the fixed value `admin` because authentication uses one Basic-auth account. Multi-user attribution and a full event log for payment/refund transitions remain follow-up work.
 - Keep donor messages out of audit metadata. Store actor identity and action/target only; details must be allowlisted and secrets redacted.
 
-### Proposed immutable payment-event journal schema
+### Webhook receipt journal — implemented
 
-The existing `donations` and `refunds` tables are the financial source of record, but they do not retain every status transition or webhook delivery attempt. The following additive schema is a proposal for a separately reviewed migration; it does not store raw webhook bodies, signatures or secrets:
+The webhook receipt journal is already implemented as `payment_webhook_events`; do not create the proposed `payment_status_events` table below as a duplicate. The receipt journal is not a substitute for the `donations`/`refunds` financial source of record and does not assert exactly-once delivery. It stores metadata and a SHA-256 payload digest, not raw webhook bodies, signatures or secrets. The protected admin endpoint is `GET /api/admin/webhook-events`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS payment_status_events (
@@ -278,15 +295,17 @@ Only populate `provider_event_id` when the provider's documented event identifie
 
 ## 5. Final operational acceptance checklist
 
-- [ ] PR #88 latest head CI green, merged and deployed.
-- [ ] Refund webhook integration test passes in CI and sandbox.
-- [ ] Webhook signature/verification failures do not mutate state.
-- [ ] Duplicate/concurrent payment and refund tests pass.
-- [ ] Explicit state transition policy implemented and tested.
-- [ ] Local backup timer succeeds with production DB/config/media paths.
-- [ ] Encrypted off-site backup timer installed; remote cryptcheck passes.
-- [ ] Isolated restore drill completed and evidence retained.
-- [ ] Staging reboot test completed.
-- [ ] pip-audit and Gitleaks scans completed and findings remediated.
-- [ ] Healthcheck and Telegram alerts installed and tested.
-- [ ] All admin mutations audited; financial journal and audit UI reviewed.
+- [x] PR #88 terminal refund-state fix merged and production deployed.
+- [x] PR #90 concurrent duplicate payment/refund notification tests merged.
+- [x] PR #91 rejects refund amounts that normalize to zero.
+- [x] PR #93 webhook receipt journal merged and deployed.
+- [x] PR #95 journal database failure isolation tested and deployed.
+- [x] PR #96 restore-drill archive safety tests merged and deployed.
+- [x] Main workflow #373: unit/browser tests, lint, ops-script validation and dependency audit passed; production deploy and apex/www health + SEO checks passed.
+- [ ] Provider sandbox refund/replay checks; no real-money tests are permitted.
+- [ ] Confirm local backup timer and actual DB/config/media paths directly on VPS.
+- [ ] Configure encrypted off-site backup; rclone credentials and crypt remote are not configured/verified by this runbook.
+- [ ] Execute and retain an isolated restore drill against a real production backup archive.
+- [ ] Confirm healthcheck/Telegram and remote-backup systemd timers are installed on VPS; repository files alone do not prove installation.
+- [ ] Complete staging reboot test and secured full-history Gitleaks scan.
+- [ ] Review YooKassa webhook IP allowlist against current official provider ranges.
