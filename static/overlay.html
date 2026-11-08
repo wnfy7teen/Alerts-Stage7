@@ -78,8 +78,25 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let reconnectDelay = 1000;
 let reconnectTimer = null;
+const ALERT_DEDUPE_STORAGE_KEY = "donation-alert-seen-v1";
 const seenAlertIds = new Set();
 const seenAlertOrder = [];
+
+// Keep a bounded receipt history across OBS Browser Source reloads. The server's
+// durable outbox may retry after a process restart or an interrupted delivery.
+try {
+  const saved = JSON.parse(localStorage.getItem(ALERT_DEDUPE_STORAGE_KEY) || "[]");
+  if (Array.isArray(saved)) {
+    for (const id of saved.filter(value => typeof value === "string").slice(-500)) {
+      if (!seenAlertIds.has(id)) {
+        seenAlertIds.add(id);
+        seenAlertOrder.push(id);
+      }
+    }
+  }
+} catch (_) {
+  // Storage can be unavailable in restricted browser-source environments.
+}
 
 function rememberAlert(id) {
   if (!id) return true;
@@ -87,6 +104,11 @@ function rememberAlert(id) {
   seenAlertIds.add(id);
   seenAlertOrder.push(id);
   if (seenAlertOrder.length > 500) seenAlertIds.delete(seenAlertOrder.shift());
+  try {
+    localStorage.setItem(ALERT_DEDUPE_STORAGE_KEY, JSON.stringify(seenAlertOrder));
+  } catch (_) {
+    // In-memory deduplication remains available if persistent storage is blocked.
+  }
   return true;
 }
 
