@@ -659,12 +659,15 @@ async def _recover_cryptopay_creation(donation_id: str) -> sqlite3.Row | None:
     ):
         return None
     with closing(db()) as c:
-        c.execute(
+        claimed = c.execute(
             "UPDATE donations SET creation_checked_at=? "
-            "WHERE id=? AND provider='cryptopay' AND status='created' AND creation_unknown=1",
-            (now, donation_id),
+            "WHERE id=? AND provider='cryptopay' AND status='created' AND creation_unknown=1 "
+            "AND (creation_checked_at IS NULL OR creation_checked_at<=?)",
+            (now, donation_id, now - 15),
         )
         c.commit()
+    if claimed.rowcount != 1:
+        return None
     try:
         invoice = await _cp_find_invoice_by_payload(donation_id)
     except (PaymentError, httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
@@ -1038,7 +1041,9 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
             if row["provider"] == "cryptopay" and row["creation_unknown"]:
                 recovered = await _recover_cryptopay_creation(row["id"])
                 if recovered and recovered["checkout"]:
-                    return _stored_response(recovered)
+                    await refresh(recovered)
+                    refreshed = get_row(row["id"])
+                    return _stored_response(refreshed)
             raise PaymentError("Результат создания платежа уточняется. Повторно создавать счёт нельзя.", 409) from None
         return _stored_response(row)
 
@@ -1081,7 +1086,10 @@ async def create_donation(*, method: str, amount: float, currency: str, name: st
             c.commit()
     except sqlite3.IntegrityError:  # провайдер вернул уже известный номер платежа — второй раз не засчитываем
         with closing(db()) as c:
-            c.execute("UPDATE donations SET status='failed' WHERE id=?", (donation_id,))
+            c.execute(
+                "UPDATE donations SET status='failed', creation_unknown=0, creation_checked_at=NULL WHERE id=?",
+                (donation_id,),
+            )
             c.commit()
         log.error("Дубликат provider_txn_id %s у %s", txn, method)
         raise PaymentError("Не удалось создать платёж, попробуйте ещё раз", 502) from None
