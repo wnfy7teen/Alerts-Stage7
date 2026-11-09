@@ -81,7 +81,7 @@ jobs:
               "${URL}" -o "${OUT}"
             for EXPECTED in \
               'DESIGNED &amp; DEVELOPED BY' \
-              'Krisofer Biksan' \
+              'Kristofer Biksan' \
               'Web Developer · Technical Support' \
               'mailto:usdtuser1@proton.me' \
               'https://t.me/web3ResearchCN' \
