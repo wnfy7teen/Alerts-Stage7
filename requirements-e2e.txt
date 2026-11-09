@@ -1,1 +1,2 @@
 pytest-playwright>=0.5
+axe-playwright-python>=0.1.4

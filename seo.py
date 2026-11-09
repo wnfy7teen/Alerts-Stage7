@@ -92,13 +92,45 @@ def methods_short() -> str:
     return ", ".join(parts)
 
 
+ICONS = {
+    "yookassa": '<rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19M6.500 15h4"/>',
+    "nowpayments": '<circle cx="12" cy="12" r="9"/><path d="M9.500 9.500c.6-1 1.500-1.500 2.500-1.500 1.500 0 2.500.8 2.500 2s-1 1.700-2.500 2-2.500.8-2.500 2 1 2 2.500 2c1 0 1.900-.5 2.500-1.500M12 6v2M12 16v2"/>',
+    "cryptopay": '<path d="M21.500 3 2.500 10.500l7 2.800 2.800 7.200z"/><path d="M9.500 13.300 21.500 3"/>',
+}
+
+
+def icon(method_id: str) -> str:
+    return ('<svg class="opt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+            f'stroke-linejoin="round" aria-hidden="true">{ICONS.get(method_id, "")}</svg>')
+
+
+def steps_html(cfg) -> str:
+    sym = SYMBOLS.get(cfg.fiat, cfg.fiat)
+    short = methods_short()
+    items = [
+        ("Выберите сумму", f"От {num(cfg.min_amount)} {sym}. Быстрые суммы под рукой, можно ввести свою."),
+        ("Оплатите", (short[:1].upper() + short[1:] + ". Платёж подтверждается автоматически.") if short else "Платёж подтверждается автоматически."),
+        ("Появитесь в эфире", "Алерт с вашим именем и сообщением показывается сразу после подтверждения платежа."),
+    ]
+    return '<ol class="steps-list">' + "".join(f"<li><strong>{esc(t)}</strong><span>{esc(d)}</span></li>" for t, d in items) + "</ol>"
+
+
+def top_links_html() -> str:
+    links = same_as()
+    if not links:
+        return ""
+    return ('<nav aria-label="Профили стримера"><ul class="toplinks">'
+            + "".join(f'<li><a href="{esc(u)}" rel="noopener noreferrer">{esc(link_label(u))}</a></li>' for u in links)
+            + "</ul></nav>")
+
+
 def intro_text() -> str:
     custom = os.getenv("ABOUT_TEXT", "").strip()
     if custom:
         return custom
     n = streamer_name()
     if n:
-        return (f"{n} — стример на Twitch. Здесь зрители могут поддержать {n} донатом: выберите сумму и способ оплаты, "
+        return (f"{n} — стример на Twitch. Поддержите {n} донатом: выберите сумму и способ оплаты, "
                 "напишите сообщение, и оно появится на стриме.")
     return "Здесь зрители могут поддержать стримера донатом: выберите сумму и способ оплаты, напишите сообщение, и оно появится на стриме."
 
@@ -203,8 +235,8 @@ def head_html(meta: dict, noindex: bool, ld: str) -> str:
         f"<title>{t}</title>",
         f'<meta name="description" content="{d}">',
         f'<meta name="robots" content="{robots}">',
-        '<meta name="msvalidate.01" content="1656712732A8B6F806D5737CCDB19855">',
         f'<link rel="canonical" href="{u}">',
+        '<meta name="msvalidate.01" content="1656712732A8B6F806D5737CCDB19855">',
         '<meta name="theme-color" content="#0593C6">',
         '<link rel="icon" href="/favicon.svg" type="image/svg+xml">',
         '<link rel="icon" href="/favicon.ico" sizes="any">',
@@ -240,11 +272,12 @@ def render_donate(template: str, req: Request, cfg) -> str:
     presets = [v for v in (100, 300, 500, 1000) if v >= cfg.min_amount]
 
     chips = "".join(
-        f'<button type="button" data-v="{v}" aria-pressed="{"true" if v == default_amount else "false"}">{v} {esc(sym)}</button>'
+        f'<button type="button" class="chip" data-v="{v}" aria-pressed="{"true" if v == default_amount else "false"}">{v} {esc(sym)}</button>'
         for v in presets)
     method_html = "".join(
         f'<label class="method"><input type="radio" name="method" value="{esc(m["id"])}"{" checked" if i == 0 else ""}>'
-        f'<span class="card"><span>{esc(m["label"])}</span><small>{esc(m["hint"])}</small></span></label>'
+        f'<span class="opt"><span class="dot" aria-hidden="true"></span><span><span class="opt-title">{esc(m["label"])}</span>'
+        f'<span class="opt-hint">{esc(m["hint"])}</span></span>{icon(m["id"])}</span></label>'
         for i, m in enumerate(methods))
     faq_html = "".join(
         f'<details class="faq-item"><summary>{esc(q)}<span class="faq-chevron" aria-hidden="true"></span></summary>'
@@ -256,16 +289,24 @@ def render_donate(template: str, req: Request, cfg) -> str:
         links_html = ('<nav aria-label="Профили стримера"><ul class="links">'
                       + "".join(f'<li><a href="{esc(u)}" rel="noopener noreferrer">{esc(link_label(u))}</a></li>' for u in links)
                       + "</ul></nav>")
+    facts = [f"От {num(cfg.min_amount)} {sym}", "Без регистрации"]
+    if methods_short():
+        short = methods_short()
+        facts.append(short[:1].upper() + short[1:])
+    facts_html = '<ul class="facts" aria-label="Коротко о донатах">' + "".join(f"<li>{esc(f)}</li>" for f in facts) + "</ul>"
     cfg_json = json.dumps({
         "min_amount": cfg.min_amount, "max_amount": cfg.max_amount, "symbol": sym, "max_message_len": cfg.max_message_len,
         "streamer": name, "methods": methods, "turnstile_site_key": TURNSTILE_SITE_KEY,
+        "title_template": cfg.title_template, "tiers": [{"min_amount": t.min_amount, "color": t.color} for t in cfg.tiers],
     }, ensure_ascii=False).replace("<", "\\u003c")
 
     btn_text = f"Поддержать на {num(default_amount)} {sym}" if methods else "Поддержать"
     subs = {
         "{{HEAD}}": head_html(meta, noindex, jsonld(meta, cfg, questions, last_modified())),
-        "{{H1}}": esc(f"Поддержать {name}" if name else "Поддержать стримера"),
-        "{{INTRO}}": esc(intro_text()),
+        "{{H1_A}}": "Поддержать", "{{H1_B}}": esc(name or "стримера"),
+        "{{H1_CLASS}}": "n-l" if len(name) > 15 else ("n-m" if len(name) > 10 else ""),
+        "{{BRAND}}": esc(name or "Донаты"), "{{TOPLINKS}}": top_links_html(), "{{STEPS}}": steps_html(cfg),
+        "{{INTRO}}": esc(intro_text()), "{{FACTS}}": facts_html,
         "{{AMOUNT}}": esc(num(default_amount)), "{{MIN}}": esc(num(cfg.min_amount)), "{{SYMBOL}}": esc(sym),
         "{{MINHINT}}": esc(f"Минимум {num(cfg.min_amount)} {sym}"),
         "{{CHIPS}}": chips, "{{METHODS}}": method_html, "{{MAXLEN}}": esc(cfg.max_message_len),

@@ -21,7 +21,7 @@ class Page(HTMLParser):
         self.h = []
         self.meta, self.links, self.ld, self.text = {}, {}, [], []
         self.summary = []
-        self._tag, self._ld, self._summary = None, False, False
+        self._tag, self._ld, self._summary, self._in_h = None, False, False, False
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -37,9 +37,12 @@ class Page(HTMLParser):
             self._ld = True
         if tag in ("h1", "h2", "h3"):
             self.h.append([tag, ""])
+            self._in_h = True
 
     def handle_endtag(self, tag):
         self._tag = None
+        if tag in ("h1", "h2", "h3"):
+            self._in_h = False
         if tag == "summary":
             self._summary = False
         if tag == "script":
@@ -48,7 +51,7 @@ class Page(HTMLParser):
     def handle_data(self, data):
         if self._ld:
             self.ld.append(data)
-        elif self._tag in ("h1", "h2", "h3") and self.h:
+        elif self._in_h and self.h:
             self.h[-1][1] += data
         elif self._tag == "title":
             self.meta["title"] = data

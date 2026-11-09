@@ -5,32 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Спасибо за поддержку</title>
-<link rel="stylesheet" href="/theme.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;800&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box}
-body{min-height:100vh;margin:0;padding:24px;display:grid;place-items:center;background:#101318;color:#F4F5F7;font-family:"Onest",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-main{width:min(100%,520px);padding:clamp(26px,6vw,42px);border:1px solid #343C49;border-radius:16px;background:#1B2029;text-align:center}
-.mark{width:68px;height:68px;margin:0 auto 22px;display:grid;place-items:center;border:1px solid #E9A8C3;border-radius:50%;color:#F0B7CD}
-.mark svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
-h1{margin:0;color:#F4F5F7;font-size:clamp(25px,6vw,32px);font-weight:800;line-height:1.2;letter-spacing:-.04em}
-p{margin:12px 0 26px;color:#A5AFBE;font-size:15px;line-height:1.6}
-a{min-height:52px;display:flex;align-items:center;justify-content:center;padding:13px 18px;border:1px solid #B35479;border-radius:10px;background:#B35479;color:#FFF;font-size:15px;font-weight:800;text-decoration:none;transition:background .16s ease,transform .16s ease}
-a:hover{background:#A94F75;transform:translateY(-1px)}
-a:focus-visible{outline:3px solid #F0B7CD;outline-offset:3px}
-@media(prefers-reduced-motion:reduce){a{transition:none}}
-</style>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/onest-v1.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/unbounded-v1.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/tokens.css?v={{ASSET_V}}">
+<link rel="stylesheet" href="/assets/app.css?v={{ASSET_V}}">
 </head>
 <body>
-<main>
-  <div class="mark" aria-hidden="true">
-    <svg viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></svg>
+<main class="center-page">
+  <div class="card result">
+    <svg class="tick" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="30"/><path d="M28 43l10 10 19-21"/></svg>
+    <h1>Спасибо за поддержку!</h1>
+    <p>Вы вернулись со страницы оплаты. Если платёж прошёл, его статус обновится после подтверждения.</p>
+    <a class="btn btn-primary" href="/">Вернуться к донатам</a>
   </div>
-  <h1>Спасибо за поддержку!</h1>
-  <p>Вы вернулись со страницы оплаты. Если платёж прошёл, его статус обновится после подтверждения.</p>
-  <a href="/">Вернуться к донатам</a>
 </main>
 </body>
 </html>

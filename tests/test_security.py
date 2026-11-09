@@ -438,11 +438,18 @@ def test_shared_brand_theme_is_available_and_allowed_by_csp(client):
     assert "--accent: #E9A8C3" in theme.text
     assert "--glow-violet:" in theme.text
 
-    for path, auth in [("/", None), ("/admin", AUTH), ("/thanks", None), ("/overlay", None)]:
+    for path, auth in [("/admin", AUTH), ("/overlay", None)]:      # админка и оверлей остаются на общей тёмной теме
         response = client.get(path, auth=auth)
         csp = response.headers["content-security-policy"]
         assert "style-src 'self'" in csp
         assert 'href="/theme.css"' in response.text
+
+    for path in ("/", "/thanks"):                                   # публичные страницы: новый дизайн со своими шрифтами
+        response = client.get(path)
+        csp = response.headers["content-security-policy"]
+        assert "style-src 'self'" in csp and "font-src 'self'" in csp
+        assert "googleapis" not in csp and "gstatic" not in csp
+        assert re.search(r'href="/assets/app\.css\?v=[0-9a-f]{10}"', response.text) and 'href="/theme.css"' not in response.text
 
 def test_donation_page_uses_short_payment_heading(client):
     for path in ("/", "/?donation=" + "a" * 32):
@@ -452,17 +459,13 @@ def test_donation_page_uses_short_payment_heading(client):
 
 
 def test_donation_amount_field_hides_native_number_spinner(client):
+    """Поле суммы текстовое (без стрелок number), десятичная клавиатура на телефоне, рамка у обёртки, а не у самого поля."""
     response = client.get("/")
     assert response.status_code == 200
     assert '<input id="amount" type="text" inputmode="decimal"' in response.text
-    assert ".amount input{" in response.text
-    assert "background:transparent!important" in response.text
-    assert "border:0!important" in response.text
-    assert "font-size:clamp(36px,9vw,48px)" in response.text
-    assert "line-height:1.1" in response.text
-    assert response.text.index(".amount input#amount{") > response.text.index("input[type=text],input[type=number],textarea{")
-    assert "font-family:\"Unbounded\",sans-serif;font-size:clamp(36px,9vw,48px)" in response.text
-
+    css = (Path(__file__).resolve().parents[1] / "static" / "assets" / "app.css").read_text(encoding="utf-8")
+    rule = re.search(r"\.amount input \{([^}]*)\}", css).group(1)
+    assert "border: 0" in rule and "background: transparent" in rule and "outline: none" in rule
 
 def test_overlay_deduplicates_retried_alerts_across_reload():
     overlay = (Path(__file__).resolve().parents[1] / "static" / "overlay.html").read_text(encoding="utf-8")
