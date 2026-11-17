@@ -1,0 +1,82 @@
+/* Дизайн-токены сайта. Цвета бренда: небесно-голубой #0593C6, белый #FCFFFF, нежно-розовый #F8C8DC.
+   Контраст всех пар «текст/фон» проверяет tests/test_design.py (WCAG 2.2: 4.5:1 для текста, 7:1 для основного, 3:1 для рамок и значков). */
+
+@font-face { font-family: "Onest"; src: url("fonts/onest-v1.woff2") format("woff2"); font-weight: 400 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Unbounded"; src: url("fonts/unbounded-v1.woff2") format("woff2"); font-weight: 600 800; font-style: normal; font-display: swap; }
+
+:root {
+  color-scheme: light dark;
+
+  /* бренд */
+  --brand-blue: #0593C6;
+  --brand-white: #FCFFFF;
+  --brand-pink: #F8C8DC;
+
+  /* роли цвета: светлая тема */
+  --c-bg: #FCFFFF;
+  --c-surface: #FFFFFF;
+  --c-surface-soft: #EAF6FB;
+  --c-pink: #F8C8DC;            /* выбранное, подсветка (текст на нём: --c-ink) */
+  --c-pink-soft: #FDEFF5;       /* мягкие фоны */
+  --c-line: #CFE5EE;            /* декоративные границы карточек */
+  --c-outline: #0A2F42;         /* контуры интерфейса: толстая рамка и жёсткие тени */
+  --c-night: #071C28;           /* «ночной» фон сцены и алерта */
+  --c-night-ink: #EAF6FB;       /* текст на ночном фоне (подпись внизу страницы) */
+  --c-night-muted: #A9C6D3;
+  --c-night-accent: #7AD3F1;    /* ссылки и неон на ночном фоне */
+  --c-night-pink: #F8C8DC;
+  --c-control: #6F93A3;         /* границы полей и кнопок (3:1 и выше) */
+  --c-ink: #0A2F42;             /* основной текст (7:1 и выше) */
+  --c-ink-muted: #456270;       /* второстепенный текст */
+  --c-brand: #0593C6;           /* графика и акценты: не для обычного текста (3,5:1 на белом) */
+  --c-action: #00769F;          /* кнопки, белый текст на них 5,1:1 */
+  --c-action-hover: #005F84;
+  --c-on-action: #FFFFFF;
+  --c-link: #00769F;
+  --c-focus: #0593C6;
+  --c-success: #0F7A3C;  --c-success-bg: #E8F6EE;
+  --c-error: #B3261E;    --c-error-bg: #FDEFF5;
+  --c-warning: #8A5200;  --c-warning-bg: #FFF4E0;
+
+  /* шрифты и шкала (отношение 1.25, база 16px) */
+  --font-body: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-head: "Unbounded", "Onest", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --fs--1: 0.8rem;  --fs-0: 1rem;  --fs-1: 1.25rem;  --fs-2: 1.5625rem;  --fs-3: 1.953rem;  --fs-4: 2.441rem;  --fs-5: 3.052rem;
+  --lh-body: 1.6;  --lh-head: 1.2;  --lh-tight: 1.1;
+  --measure: 68ch;               /* длина строки 60–75 символов */
+
+  /* отступы, скругления, тени */
+  --sp-1: 0.25rem; --sp-2: 0.5rem; --sp-3: 0.75rem; --sp-4: 1rem; --sp-5: 1.5rem; --sp-6: 2rem; --sp-7: 3rem; --sp-8: 4rem;
+  --r-s: 0.5rem; --r-m: 0.75rem; --r-l: 1.25rem; --r-pill: 999px;
+  --hard-sm: 4px 4px 0 var(--c-outline);
+  --hard-md: 8px 8px 0;
+  --shadow-1: 0 1px 2px rgba(10, 47, 66, 0.06), 0 6px 20px rgba(10, 47, 66, 0.07);
+  --shadow-2: 0 10px 36px rgba(10, 47, 66, 0.14);
+  --tap: 2.75rem;                /* минимальная цель нажатия 44px */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #071C28;
+    --c-surface: #0D2A3A;
+    --c-surface-soft: #123547;
+    --c-pink: #4A2A3A;
+    --c-pink-soft: #2A2030;
+    --c-line: #1E4357;
+    --c-outline: #9FD8EE;
+    --c-control: #5F8799;
+    --c-ink: #EAF6FB;
+    --c-ink-muted: #A9C6D3;
+    --c-brand: #4FC1EA;
+    --c-action: #4FC1EA;
+    --c-action-hover: #7AD3F1;
+    --c-on-action: #04202D;
+    --c-link: #58C4EC;
+    --c-focus: #58C4EC;
+    --c-success: #6FD79B;  --c-success-bg: #0F2F22;
+    --c-error: #FF8F86;    --c-error-bg: #3A1F27;
+    --c-warning: #F2B24D;  --c-warning-bg: #33280F;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+    --shadow-2: 0 10px 36px rgba(0, 0, 0, 0.4);
+  }
+}

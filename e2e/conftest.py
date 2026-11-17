@@ -63,3 +63,12 @@ def admin_api(playwright, base_url):
     assert ctx.put("/api/admin/config", data=cfg).ok
     yield ctx
     ctx.dispose()
+
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(browser_type_launch_args):
+    """Для локального запуска со своим Chromium: CHROMIUM_PATH=/путь/к/chromium. В CI не задаётся (там браузер ставит Playwright)."""
+    path = os.getenv("CHROMIUM_PATH")
+    if path:
+        return {**browser_type_launch_args, "executable_path": path, "args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]}
+    return browser_type_launch_args

@@ -135,8 +135,8 @@ def csp(kind: str, nonce: str, host: str) -> str:
         yk = "https://yookassa.ru https://*.yookassa.ru https://yoomoney.ru https://*.yoomoney.ru"
         parts += [
             f"script-src {script} {yk} https://challenges.cloudflare.com",
-            f"style-src {style} https://fonts.googleapis.com",
-            "font-src https://fonts.gstatic.com",
+            f"style-src {style}",
+            "font-src 'self'",
             "img-src 'self' data: https:",
             f"connect-src 'self' {yk} https://challenges.cloudflare.com",
             "frame-src https:",  # платёжные формы и 3-D Secure банков открываются во фреймах разных доменов
@@ -148,7 +148,7 @@ def csp(kind: str, nonce: str, host: str) -> str:
     elif kind == "admin":
         parts += [f"script-src {script}", f"style-src {style}", "img-src 'self' data:", "media-src 'self'", "connect-src 'self'"]
     else:
-        parts += [f"style-src {style}"]
+        parts += [f"style-src {style}", "font-src 'self'"]
     parts.append("report-uri /api/csp-report")
     return "; ".join(parts)
 

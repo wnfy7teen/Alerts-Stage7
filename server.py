@@ -28,6 +28,8 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import hashlib
+
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -431,12 +433,37 @@ class DonationIn(BaseModel):
     turnstile_token: str = Field(default="", max_length=2048)
 
 
+def _asset_version() -> str:
+    """Короткий отпечаток стилей: при любой правке адрес меняется, и браузер не держит старую версию."""
+    h = hashlib.sha256()
+    for f in sorted((STATIC / "assets").glob("*.css")):
+        h.update(f.read_bytes())
+    return h.hexdigest()[:10]
+
+
+ASSET_V = _asset_version()
+
+
+class CachedStatic(StaticFiles):
+    """Версионированные CSS кэшируются надолго, шрифты — ограниченное время."""
+
+    async def get_response(self, path, scope):
+        resp = await super().get_response(path, scope)
+        if resp.status_code == 200:
+            if path.lower().endswith(".css"):
+                resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                resp.headers["Cache-Control"] = "public, max-age=3600"
+        return resp
+
+
 def html_page(name: str, kind: str, req: Request, transform=None) -> HTMLResponse:
     """Отдаёт страницу, подставляя одноразовый nonce в <script> и <style> (inline-код без nonce браузер не выполнит)."""
     nonce = secrets.token_urlsafe(16)
     html = (STATIC / name).read_text(encoding="utf-8")
     if transform:
         html = transform(html)
+    html = html.replace("{{ASSET_V}}", ASSET_V)
     html = html.replace("<script>", f'<script nonce="{nonce}">').replace("<style>", f'<style nonce="{nonce}">')
     header = "Content-Security-Policy-Report-Only" if sec.CSP_REPORT_ONLY else "Content-Security-Policy"
     return HTMLResponse(html, headers={header: sec.csp(kind, nonce, req.headers.get("host", ""))})
@@ -995,6 +1022,7 @@ def admin_webhook_events(page: int = 1, limit: int = 50, provider: str = ""):
 
 
 app.mount("/media", StaticFiles(directory=MEDIA), name="media")
+app.mount("/assets", CachedStatic(directory=STATIC / "assets"), name="assets")
 
 if __name__ == "__main__":
     uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=PORT, access_log=False)  # в адресах бывают ключи оверлея и id платежей

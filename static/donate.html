@@ -4,141 +4,88 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 {{HEAD}}
-<link rel="stylesheet" href="/theme.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;800&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box}[hidden]{display:none!important}
-:root{--page-bg:#101318;--card-bg:#1B2029;--field-bg:#11161E;--border:#343C49;--border-strong:#596474;--text-main:#F4F5F7;--text-muted:#A5AFBE;--accent:#E9A8C3;--button:#B35479;--button-hover:#A94F75}
-body{min-height:100vh;margin:0;padding:42px 18px 32px;display:flex;justify-content:center;background:var(--page-bg);color:var(--text-main);font-family:"Onest",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-.page{width:100%;max-width:560px}header{position:relative;padding:4px 4px 24px;margin-bottom:4px}header:after{content:"";display:block;width:54px;height:3px;margin-top:18px;background:var(--accent)}
-h1{margin:0;color:var(--text-main);font-family:"Onest",system-ui,sans-serif;font-size:clamp(27px,6vw,34px);font-weight:800;line-height:1.14;letter-spacing:-.045em;overflow-wrap:anywhere}
-.sub{margin:9px 0 0;color:var(--text-muted);font-size:15px;line-height:1.5}main{display:grid;gap:26px}
-.box{display:grid;gap:22px;padding:26px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;box-shadow:none}
-label,legend{color:var(--text-main);font-size:15px;font-weight:700}label{display:grid;gap:10px}
-fieldset{min-width:0;margin:0;padding:0;border:0;display:grid;gap:12px}legend{margin-bottom:12px;padding:0}
-.amount{min-height:88px;display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--field-bg);border:1px solid var(--border-strong);border-radius:10px;transition:border-color .16s ease,box-shadow .16s ease}
-.amount:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(233,168,195,.18)}
-.amount input{width:100%;min-width:0;min-height:52px;padding:0;border:0!important;border-radius:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:#FFF;font-family:"Unbounded",sans-serif;font-size:clamp(36px,9vw,48px);line-height:1.1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums;appearance:none;-webkit-appearance:none}
-.amount span{flex:none;color:var(--accent);font-family:"Unbounded",sans-serif;font-size:clamp(36px,9vw,48px);line-height:1.1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
-.chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
-.chips button{min-width:0;min-height:46px;padding:9px 8px;border:1px solid var(--border-strong);border-radius:9px;background:#222933;color:var(--text-main);font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background .16s ease,border-color .16s ease}
-.chips button:hover{background:#303844;border-color:var(--accent)}.chips button[aria-pressed=true]{background:#38232D;border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(233,168,195,.20)}
-.hint{display:flex;justify-content:space-between;gap:10px;color:var(--text-muted);font-size:13px;font-weight:400;line-height:1.45}#minhint{margin-top:-10px}
-input[type=text],input[type=number],textarea{width:100%;min-width:0;padding:13px 14px;border:1px solid var(--border-strong);border-radius:9px;outline:none;background:var(--field-bg);color:var(--text-main);font:inherit;font-size:15px;font-weight:400;transition:border-color .16s ease,box-shadow .16s ease}
-/* Keep the donation amount typography above the generic text-field reset. */
-.amount input#amount{font-family:"Unbounded",sans-serif;font-size:clamp(36px,9vw,48px);line-height:1.1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
-input::placeholder,textarea::placeholder{color:#AAB7C9;opacity:1}
-input[type=text]:focus,input[type=number]:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(233,168,195,.18)}
-textarea{min-height:104px;resize:vertical;line-height:1.5}
-.methods{display:grid;gap:10px}.method{position:relative;display:block}
-.method input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
-.method .card{min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;border:1px solid var(--border-strong);border-radius:10px;background:#151A22;color:var(--text-main);cursor:pointer;transition:border-color .16s ease,background .16s ease}
-.method .card>span:first-child{font-size:15px;font-weight:700;line-height:1.35}.method .card small{display:block;margin-top:3px;color:var(--text-muted);font-size:13px;font-weight:400;line-height:1.4}
-.method .card:after{content:"";width:17px;height:17px;flex:0 0 17px;border:2px solid #8291A8;border-radius:50%;background:transparent}
-.method:hover .card{border-color:var(--accent)}.method input:checked+.card{border:2px solid var(--accent);padding:12px 14px;background:#392329}
-.method input:checked+.card:after{border:5px solid #E9A8C3;background:#392329}.method input:focus-visible+.card{outline:3px solid #F0B7CD;outline-offset:3px}
-.pay{display:block;width:100%;min-height:58px;padding:15px 18px;border:1px solid var(--button);border-radius:10px;background:var(--button);color:#FFF;text-align:center;text-decoration:none;font:inherit;font-size:16px;font-weight:800;cursor:pointer;transition:background .16s ease,transform .16s ease}
-.pay:hover:not(:disabled){background:var(--button-hover);transform:translateY(-1px)}.pay:disabled{opacity:.65;cursor:wait}
-.ghost{min-height:44px;padding:10px;border:0;background:transparent;color:#F0B7CD;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-#err{min-height:1.2em;margin:-8px 0 0;color:#FF9AA2;font-size:14px;line-height:1.45}.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}.ts-on{min-height:65px}
-.status{display:flex;align-items:center;gap:10px;color:var(--text-muted);line-height:1.45}.spin{width:18px;height:18px;flex:none;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-#yk-form{min-height:120px;padding:4px;border-radius:12px;background:#FFF}.checkout-stack{display:grid;gap:14px}.checkout-note{margin:0;color:var(--text-muted);line-height:1.5}
-.addr{padding:12px;border:1px solid var(--border-strong);border-radius:10px;background:var(--field-bg);font-family:ui-monospace,Consolas,monospace;font-size:14px;overflow-wrap:anywhere}
-.qr{display:block;width:min(200px,100%);height:auto;aspect-ratio:1;margin:0 auto;padding:8px;border-radius:10px;background:#FFF}
-.big{color:#FFF;font-family:"Unbounded",sans-serif;font-size:clamp(19px,5vw,23px);font-weight:800;overflow-wrap:anywhere}
-.result{text-align:center}.result h2{margin:8px 0;color:#FFF;font-family:"Unbounded",sans-serif;font-size:21px;line-height:1.35}.result p{margin:0 0 6px;color:var(--text-muted);line-height:1.55}
-.tick{width:84px;height:84px;margin:0 auto}.tick circle{fill:none;stroke:#68D6A5;stroke-width:4;stroke-dasharray:190;stroke-dashoffset:190;animation:draw .7s ease forwards}.tick path{fill:none;stroke:#68D6A5;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:50;stroke-dashoffset:50;animation:draw .5s .55s ease forwards}@keyframes draw{to{stroke-dashoffset:0}}.cross{color:#FF8D96;font-size:56px;line-height:1}
-.faq{padding:2px 4px 0}.faq-search{width:100%;min-height:44px;margin:0 0 12px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;background:var(--field-bg);color:var(--text-main);font:inherit;font-size:14px}.faq-search::placeholder{color:var(--text-muted)}.faq-search:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.faq-empty{margin:0;padding:12px 2px;color:var(--text-muted);font-size:14px;line-height:1.5}.faq h2{margin:0 0 14px;color:var(--text-main);font-family:"Onest",sans-serif;font-size:19px;font-weight:800;line-height:1.3;letter-spacing:-.02em}
-.faq-list{border-top:1px solid var(--border)}.faq-item{border-bottom:1px solid var(--border)}
-.faq-item summary{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 2px;color:var(--text-main);font-size:14px;font-weight:700;line-height:1.45;cursor:pointer;list-style:none}
-.faq-item summary::-webkit-details-marker{display:none}.faq-item summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
-.faq-chevron{width:8px;height:8px;flex:0 0 8px;margin:0 4px 4px 0;border-right:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(45deg);transition:transform .18s ease}
-.faq-item[open] .faq-chevron{margin-bottom:-4px;transform:rotate(225deg)}.faq-answer>div{overflow:hidden}
-.faq-answer p{margin:0;padding:0 24px 16px 2px;color:var(--text-muted);font-size:14px;line-height:1.65}
-.faq-item[open] .faq-answer{animation:faq-reveal .18s ease both}@keyframes faq-reveal{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
-footer{margin-top:24px;padding:0 4px;color:var(--text-muted);font-size:13px;line-height:1.55}footer p{margin:10px 0 0}
-.developer-credit{position:relative;isolation:isolate;overflow:hidden;margin-top:26px;padding:25px 20px 17px;border:0;border-radius:16px;background:transparent;text-align:center;box-shadow:0 12px 32px rgba(0,0,0,.16)}
-.developer-credit .dev-label{margin:0;color:#D2A9BA;font-size:9px;font-weight:800;letter-spacing:.2em}
-.developer-credit .dev-name{margin:9px 0 3px;color:var(--text-main);font-size:clamp(21px,5vw,25px);font-weight:850;letter-spacing:-.045em;line-height:1.2}
-.developer-credit .dev-role{margin:0;color:var(--text-muted);font-size:12px;letter-spacing:.015em}
-.developer-contact{display:flex;flex-wrap:wrap;align-items:stretch;justify-content:center;gap:0;width:100%;margin:20px auto 0;padding:13px 16px;border:1px solid rgba(233,168,195,.2);border-radius:12px;background:rgba(255,255,255,.018)}
-.developer-contact>div{flex:1 1 0;min-width:0;display:grid;align-content:center;gap:6px;padding:2px 16px;text-align:left}
-.developer-contact>div+div{border-left:1px solid rgba(165,175,190,.2)}
-.developer-contact .contact-label{display:flex;align-items:center;gap:6px;color:#FFFFFF;font-size:10px;font-weight:700;letter-spacing:.045em}
-.developer-contact .contact-label svg{width:13px;height:13px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.developer-contact a{color:#FFFFFF;font-size:12px;font-weight:700;text-decoration:none;text-underline-offset:3px;overflow-wrap:anywhere;transition:color .16s ease}
-.developer-contact a:hover{color:#FFFFFF;text-decoration:underline}
-.developer-credit .dev-copyright{margin:17px 0 0;padding-top:13px;border-top:1px solid rgba(165,175,190,.13);font-size:10px;letter-spacing:.025em;color:var(--text-muted)}
-@media(max-width:380px){.developer-credit{padding:22px 13px 15px}.developer-contact{padding:11px 12px}.developer-contact>div{padding:8px 4px}.developer-contact>div+div{border-left:0;border-top:1px solid rgba(165,175,190,.2);margin-top:10px;padding-top:12px}.developer-contact a{font-size:11px}}
-.links{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 8px;padding:0;list-style:none}.links a{display:inline-block;padding:7px 0;color:#F0B7CD;font-weight:700;text-underline-offset:3px}
-input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #F0B7CD;outline-offset:3px}
-@media(max-width:520px){body{padding:22px 13px 24px}header{padding:4px 3px 18px}.box{gap:18px;padding:19px 17px;border-radius:15px}.chips{grid-template-columns:repeat(2,minmax(0,1fr))}.chips button{min-height:48px}.method .card{min-height:64px;padding:12px}}
-@media(max-width:380px){
-  body{padding:18px 10px 20px}
-  header{padding-bottom:16px}
-  h1{font-size:27px}
-  .box{gap:16px;padding:16px 13px;border-radius:12px}
-  .amount{min-height:76px;gap:8px;padding:9px 12px}
-  .amount input,.amount input#amount,.amount span{font-size:clamp(30px,8vw,38px)}
-  .amount input{min-height:48px}
-  .chips{gap:8px}
-  .chips button{min-height:48px;padding:8px 6px;font-size:13px}
-  .method .card{min-height:62px;gap:10px;padding:11px 12px}
-  .method input:checked+.card{padding:10px 11px}
-  .hint{font-size:12px}
-  textarea{min-height:96px}
-}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
-/* Keep the payment-pending indicator visibly animated: it communicates an active status. */
-@media(prefers-reduced-motion:reduce){.spin{animation:spin 1s linear infinite!important}}
-</style>
+<link rel="preload" href="/assets/fonts/onest-v1.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/unbounded-v1.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/tokens.css?v={{ASSET_V}}">
+<link rel="stylesheet" href="/assets/app.css?v={{ASSET_V}}">
 </head>
 <body>
-<div class="page">
-  <header>
-    <h1 id="title">{{H1}}</h1>
-    <p class="sub">Поддержать меня^^</p>
+<a class="skip" href="#main">К форме доната</a>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21C4 15.500 2.500 10.500 5 7.500c2-2.400 5.500-1.800 7 .8 1.500-2.600 5-3.200 7-.8 2.500 3 1 8-7 13.500z"/></svg></span><span>{{BRAND}}</span></a>
+    {{TOPLINKS}}
   </header>
-  <noscript><p class="sub">Для оплаты нужен включённый JavaScript.</p></noscript>
-  <main>
-    <form id="form" class="box" novalidate>
-      <label for="amount">Сумма
-        <div class="amount"><input id="amount" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="{{AMOUNT}}" required><span id="sym">{{SYMBOL}}</span></div>
-      </label>
-      <div class="chips" id="chips" role="group" aria-label="Быстрый выбор суммы">{{CHIPS}}</div>
-      <div class="hint" id="minhint">{{MINHINT}}</div>
 
-      <fieldset>
-        <legend>Способ оплаты</legend>
-        <div class="methods" id="methods">{{METHODS}}</div>
-      </fieldset>
-
-      <label for="name">Ваше имя
-        <input id="name" type="text" maxlength="30" placeholder="Аноним" autocomplete="nickname">
-      </label>
-      <label for="msg">Сообщение
-        <textarea id="msg" maxlength="{{MAXLEN}}" placeholder="Что хотите сказать?"></textarea>
-        <span class="hint"><span></span><span id="count">{{COUNT}}</span></span>
-      </label>
-      <div class="hp" aria-hidden="true"><label>Сайт<input id="website" name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
-      <div id="ts"{{TS_CLASS}}></div>
-      <p id="err" role="alert">{{ERR}}</p>
-      <button class="pay" id="btn" type="submit"{{BTN_DISABLED}}>{{BTN}}</button>
-    </form>
-
-    <section id="payview" class="box" hidden aria-live="polite">
-      <div id="checkout"></div>
-      <div class="status"><span class="spin" aria-hidden="true"></span><span id="statustext">Ждём подтверждения платежа…</span></div>
-      <button class="ghost" id="cancel" type="button">Изменить сумму или способ</button>
+  <main id="main" class="layout">
+    <section class="hero" aria-labelledby="title">
+      <h1 id="title" class="{{H1_CLASS}}"><span>{{H1_A}}</span> <span>{{H1_B}}</span></h1>
+      <p class="sub">Поддержать меня^^</p>
+      <p class="intro">{{INTRO}}</p>
+      <div class="stage-wrap">
+        <div class="stage" aria-hidden="true">
+          <span class="sun"></span>
+          <span class="live">в эфире</span>
+          <span class="cam"></span>
+          <span class="chat"><i></i><i></i><i></i></span>
+          <div class="pv" id="pv"><div class="pv-title" id="pvTitle"></div><div class="pv-msg" id="pvMsg"></div></div>
+        </div>
+        <p class="stage-cap">Так донат выглядит на стриме. Меняйте сумму, имя и сообщение: картинка обновляется сразу.</p>
+      </div>
+      {{FACTS}}
     </section>
 
-    <section id="resultview" class="box result" hidden aria-live="polite">
-      <div id="icon"></div>
-      <h2 id="rtitle" tabindex="-1"></h2>
-      <p id="rtext"></p>
-      <button class="pay" id="again" type="button"></button>
+    <div class="panel">
+      <noscript><p class="msg msg-error">Для оплаты нужен включённый JavaScript.</p></noscript>
+      <form id="form" class="card" novalidate>
+        <h2 class="card-title">Сделать донат</h2>
+
+        <div class="field">
+          <label for="amount">Сумма</label>
+          <div class="amount"><input id="amount" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="{{AMOUNT}}" required aria-describedby="minhint"><span id="sym" aria-hidden="true">{{SYMBOL}}</span></div>
+          <div class="chips" id="chips" role="group" aria-label="Быстрый выбор суммы">{{CHIPS}}</div>
+          <div class="hint" id="minhint">{{MINHINT}}</div>
+        </div>
+
+        <fieldset>
+          <legend>Способ оплаты</legend>
+          <div class="methods" id="methods">{{METHODS}}</div>
+        </fieldset>
+
+        <div class="field">
+          <label for="name">Ваше имя</label>
+          <input class="input" id="name" type="text" maxlength="30" placeholder="Аноним" autocomplete="nickname" aria-describedby="namehint">
+          <div class="hint" id="namehint">Можно оставить пустым</div>
+        </div>
+        <div class="field">
+          <label for="msg">Сообщение для стрима</label>
+          <textarea class="input" id="msg" maxlength="{{MAXLEN}}" placeholder="Что хотите сказать?" aria-describedby="count"></textarea>
+          <div class="hint"><span></span><span id="count">{{COUNT}}</span></div>
+        </div>
+        <div class="hp" aria-hidden="true"><label>Сайт<input id="website" name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+        <div id="ts"{{TS_CLASS}}></div>
+        <p id="err" class="msg msg-error" role="alert">{{ERR}}</p>
+        <button class="btn btn-primary pay" id="btn" type="submit"{{BTN_DISABLED}}>{{BTN}}</button>
+      </form>
+
+      <section id="payview" class="card" hidden aria-live="polite" aria-labelledby="paytitle">
+        <h2 id="paytitle" class="card-title" tabindex="-1">Оплата</h2>
+        <div id="checkout"></div>
+        <div class="status" role="status"><span class="spin" aria-hidden="true"></span><span id="statustext">Ждём подтверждения платежа…</span></div>
+        <button class="btn btn-ghost ghost" id="cancel" type="button">Изменить сумму или способ</button>
+      </section>
+
+      <section id="resultview" class="card result" hidden aria-live="polite" aria-labelledby="rtitle">
+        <div id="icon"></div>
+        <h2 id="rtitle" tabindex="-1"></h2>
+        <p id="rtext"></p>
+        <button class="btn btn-primary pay" id="again" type="button"></button>
+      </section>
+    </div>
+
+    <section class="steps" aria-labelledby="steps-title">
+      <h2 id="steps-title">Как это работает</h2>
+      {{STEPS}}
     </section>
 
     <section class="faq" aria-labelledby="faq-title">
@@ -150,29 +97,30 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
       </div>
     </section>
   </main>
-  <footer>
-    <section class="developer-credit" aria-label="Информация о разработчике">
-      <p class="dev-label">DESIGNED &amp; DEVELOPED BY</p>
-      <p class="dev-name">Kristofer Biksan</p>
-      <p class="dev-role">Web Developer · Technical Support</p>
 
-      <div class="developer-contact">
+  <footer class="site">
+    {{LINKS}}
+    <p>Имя и сообщение показываются в эфире стрима.</p>
+    <div class="credits" lang="en">
+      <p class="credits-label">DESIGNED &amp; DEVELOPED BY</p>
+      <p class="credits-name">Krisofer Biksan</p>
+      <p class="credits-role">Web Developer · Technical Support</p>
+      <dl class="credits-contacts">
         <div>
-          <span class="contact-label"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Business inquiries</span>
-          <a href="mailto:usdtuser1@proton.me">usdtuser1@proton.me</a>
+          <dt>Business inquiries</dt>
+          <dd><a class="credits-mail" href="mailto:usdtuser1@proton.me">usdtuser1@proton.me</a></dd>
         </div>
         <div>
-          <span class="contact-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Telegram</span>
-          <a href="https://t.me/web3ResearchCN" target="_blank" rel="noopener noreferrer">@web3ResearchCN</a>
+          <dt>Telegram</dt>
+          <dd><a class="cyber" href="https://t.me/web3ResearchCN" target="_blank" rel="noopener noreferrer"><span class="cyber-prompt" aria-hidden="true">&gt;_</span><span class="cyber-text">@web3ResearchCN</span><span class="cyber-cursor" aria-hidden="true"></span></a></dd>
         </div>
-      </div>
-
-      <p class="dev-copyright">© 2026 Kristofer Biksan. All rights reserved.</p>
-    </section>
+      </dl>
+      <p class="credits-copy">© 2026 Kristofer Biksan. All rights reserved.</p>
+    </div>
   </footer>
 </div>
+<canvas id="confetti" aria-hidden="true"></canvas>
 <script type="application/json" id="cfg">{{CFG}}</script>
-
 <script>
 const $ = id => document.getElementById(id);
 const state = { ts: null, tsId: null, cfg: null, donationId: null, idem: null, timer: null, started: 0, polling: false, amount: 0 };
@@ -183,6 +131,7 @@ function show(view) {
   $("form").hidden = view !== "form";
   $("payview").hidden = view !== "pay";
   $("resultview").hidden = view !== "result";
+  if (view === "pay") $("paytitle").focus();   // фокус переходит к новому состоянию: скринридер сразу его озвучит
 }
 function setError(t) { $("err").textContent = t || ""; }
 function fmt(n) { return String(Number(n)).replace(".", ","); }
@@ -192,7 +141,7 @@ function init() {
   state.cfg = JSON.parse($("cfg").textContent);
   document.querySelectorAll("#chips button").forEach(b => { b.onclick = () => { $("amount").value = b.dataset.v; changed(); }; });
   document.querySelectorAll("input[name=method]").forEach(r => r.addEventListener("change", changed));
-  changed(); updateCount(); initFaqSearch();
+  changed(); updateCount(); updatePreview(false); state.ready = true; initFaqSearch();
   if (state.cfg.turnstile_site_key) initTurnstile(state.cfg.turnstile_site_key);
   const resume = new URLSearchParams(location.search).get("donation");
   if (resume && /^[0-9a-f]{32}$/.test(resume)) resumePayment(resume);
@@ -226,6 +175,52 @@ function amountValue() {
 function changed() {
   state.idem = null;  // другие параметры — другой платёж, нужен новый ключ идемпотентности
   updateButton();
+  if (state.ready) updatePreview(true);
+}
+
+// ───── сцена: так донат выглядит в эфире ─────
+let lastPop = 0;
+function updatePreview(pop) {
+  const cfg = state.cfg, pv = $("pv");
+  if (!pv) return;
+  const amount = amountValue() || 0;
+  const name = ($("name").value || "").trim() || "Аноним";
+  const msg = ($("msg").value || "").trim();
+  const tier = (cfg.tiers || []).filter(t => amount >= t.min_amount).sort((a, b) => b.min_amount - a.min_amount)[0];
+  $("pvTitle").textContent = (cfg.title_template || "{name} задонатил(а) {amount}").replace("{name}", name).replace("{amount}", `${fmt(amount)}\u00A0${cfg.symbol}`);   // неразрывный пробел: «₽» не уезжает на новую строку
+  $("pvMsg").textContent = msg || "Здесь появится ваше сообщение";
+  pv.style.setProperty("--pv-accent", tier ? tier.color : "#0593C6");
+  const now = Date.now();
+  if (pop && now - lastPop > 450) {   // «подпрыгивает» в ответ на действие, но не на каждую букву
+    lastPop = now;
+    pv.classList.remove("pop"); void pv.offsetWidth; pv.classList.add("pop");
+  }
+}
+
+// ───── конфетти в брендовых цветах после успешной оплаты ─────
+function celebrate() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const c = $("confetti");
+  if (!c || !c.getContext) return;
+  const ctx = c.getContext("2d");
+  c.width = innerWidth; c.height = innerHeight;
+  const colors = ["#0593C6", "#F8C8DC", "#4FC1EA", "#00769F", "#FFB6CC"];
+  const parts = Array.from({ length: 90 }, () => ({
+    x: innerWidth / 2 + (Math.random() - 0.5) * 180, y: innerHeight * 0.55, vx: (Math.random() - 0.5) * 15, vy: -Math.random() * 14 - 6,
+    w: 6 + Math.random() * 6, h: 8 + Math.random() * 8, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: colors[Math.floor(Math.random() * colors.length)],
+  }));
+  let last = performance.now();
+  (function frame(t) {
+    const dt = Math.min(32, t - last) / 16; last = t;
+    ctx.clearRect(0, 0, c.width, c.height);
+    let alive = false;
+    for (const p of parts) {
+      p.vy += 0.45 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt;
+      if (p.y < c.height + 20) alive = true;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+    }
+    if (alive) requestAnimationFrame(frame); else ctx.clearRect(0, 0, c.width, c.height);
+  })(last);
 }
 function updateButton() {
   const a = amountValue();
@@ -241,7 +236,7 @@ function initTurnstile(siteKey) {
   s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
   s.onload = () => {
     state.tsId = window.turnstile.render("#ts", {
-      sitekey: siteKey, theme: "light", language: "ru",
+      sitekey: siteKey, theme: "auto", language: "ru",
       callback: t => { state.ts = t; },
       "expired-callback": () => { state.ts = null; },
       "error-callback": () => { state.ts = null; },
@@ -254,6 +249,13 @@ function resetTurnstile() {  // токен одноразовый: после к
   state.ts = null;
   if (state.tsId !== null && window.turnstile) window.turnstile.reset(state.tsId);
 }
+
+const STATUS_TEXT = {
+  widget: "Оплатите в форме выше: страница сама заметит платёж.",
+  crypto_address: "Ждём перевод. Подтверждение сети занимает несколько минут, страницу можно не закрывать.",
+  link: "Ждём оплату в Telegram. После оплаты вернитесь на эту страницу.",
+  default: "Ждём подтверждения платежа…",
+};
 
 // ───── отправка формы ─────
 let busy = false;
@@ -284,7 +286,7 @@ $("form").addEventListener("submit", async e => {
     state.amount = d.amount; state.donationId = d.donation_id;
     history.replaceState(null, "", "?donation=" + d.donation_id);
     show("pay");
-    $("statustext").textContent = "Ждём подтверждения платежа…";
+    $("statustext").textContent = STATUS_TEXT[d.checkout.type] || STATUS_TEXT.default;
     await renderCheckout(d.checkout);
     startPolling();
   } catch (err) {
@@ -313,6 +315,7 @@ function row(label, value, mono) {
 
 async function renderCheckout(c) {
   const box = $("checkout"); box.replaceChildren();
+  box.classList.toggle("stack", c.type !== "widget");
   if (c.type === "widget") {
     const holder = document.createElement("div"); holder.id = "yk-form"; box.appendChild(holder);
     try {
@@ -329,17 +332,16 @@ async function renderCheckout(c) {
     box.append(q, row("Отправьте ровно", `${c.amount} ${c.currency}`), row("Сеть", c.network ? String(c.network).toUpperCase() : "—"),
       row("На адрес", c.address, true));
     if (c.memo) box.appendChild(row("Memo / тег (обязательно)", String(c.memo), true));
-    const copy = document.createElement("button"); copy.type = "button"; copy.className = "pay"; copy.textContent = "Скопировать адрес";
+    const copy = document.createElement("button"); copy.type = "button"; copy.className = "btn btn-primary pay"; copy.textContent = "Скопировать адрес";
     copy.onclick = async () => { try { await navigator.clipboard.writeText(c.address); copy.textContent = "Адрес скопирован"; } catch (_) { copy.textContent = "Выделите адрес вручную"; } };
     box.appendChild(copy);
-    box.classList.add("checkout-stack");
   } else if (c.type === "link") {
     let ok = false; try { ok = new URL(c.url).protocol === "https:"; } catch (_) {}
     if (!ok) return showResult("failed");
-    const p = document.createElement("p"); p.className = "sub checkout-note";
+    const p = document.createElement("p"); p.className = "lead";
     p.textContent = "Оплата пройдёт в Telegram. Вернитесь на эту страницу: статус обновится сам.";
-    const a = document.createElement("a"); a.className = "pay"; a.href = c.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = c.label || "Открыть Crypto Bot";
-    box.classList.add("checkout-stack"); box.append(p, a);
+    const a = document.createElement("a"); a.className = "btn btn-primary pay"; a.href = c.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = c.label || "Открыть Crypto Bot";
+    box.append(p, a);
   }
 }
 
@@ -371,10 +373,10 @@ function resumePayment(id) {
 }
 
 const RESULTS = {
-  success: ["Спасибо! Донат получен", () => `${fmt(state.amount)} ${state.cfg.symbol} дошли до стрима. Сообщение скоро появится в эфире.`, "Поддержать ещё раз"],
+  success: ["Спасибо! Донат получен", () => `Донат на ${fmt(state.amount)} ${state.cfg.symbol} принят. Сообщение скоро появится в эфире.`, "Поддержать ещё раз"],
   canceled: ["Оплата отменена", () => "Деньги не списаны. Можно попробовать ещё раз.", "Попробовать снова"],
-  failed: ["Платёж не прошёл", () => "Деньги не списаны. Попробуйте другой способ оплаты.", "Попробовать снова"],
-  expired: ["Время на оплату вышло", () => "Этот счёт больше не действует. Создайте новый платёж.", "Создать новый платёж"],
+  failed: ["Платёж не прошёл", () => "Деньги не списаны. Попробуйте ещё раз или выберите другой способ.", "Попробовать снова"],
+  expired: ["Время на оплату вышло", () => "Этот счёт больше не действует. Создайте новый: это быстро.", "Создать новый платёж"],
   timeout: ["Пока нет подтверждения", () => "Если вы уже заплатили, донат появится, как только платёж подтвердится. Страницу можно закрыть.", "Вернуться к форме"],
   missing: ["Платёж не найден", () => "Возможно, ссылка устарела. Начните заново.", "Начать заново"],
 };
@@ -387,6 +389,7 @@ function showResult(kind) {
     ? '<svg class="tick" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="30"/><path d="M28 43l10 10 19-21"/></svg>'
     : '<div class="cross" aria-hidden="true">×</div>';
   show("result"); $("rtitle").focus();
+  if (kind === "success") celebrate();
 }
 
 function reset() {
