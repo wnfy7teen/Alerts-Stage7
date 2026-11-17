@@ -63,6 +63,7 @@ class Page(HTMLParser):
 @pytest.fixture()
 def page(client, monkeypatch):
     monkeypatch.setenv("STREAMER_NAME", "vanesso4ka")
+    monkeypatch.delenv("ABOUT_TEXT", raising=False)
     monkeypatch.setenv("SAME_AS", "https://www.twitch.tv/vanesso4ka, http://insecure.example, javascript:alert(1)")
     r = client.get("/", headers={"user-agent": "GPTBot"})
     p = Page()
@@ -76,6 +77,7 @@ def test_html_is_complete_without_javascript(page):
     body = " ".join(p.text)
     assert "{{" not in r.text, "в страницу попали неподставленные значения"
     assert "Поддержать меня^^" in body                                # короткий заголовок вместо повторного описания
+    assert "Поддержите стримера vanesso4ka :3 выберите сумму и способ оплаты, напишите сообщение - оно появится на стриме." in body
     assert "Карта или СБП" in body and "Криптовалюта" in body              # способы оплаты видны роботу
     assert "Минимум 50 ₽" in body and "Частые вопросы" in body
 
