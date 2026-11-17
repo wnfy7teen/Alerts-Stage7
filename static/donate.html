@@ -8,6 +8,20 @@
 <link rel="preload" href="/assets/fonts/unbounded-v1.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/tokens.css?v={{ASSET_V}}">
 <link rel="stylesheet" href="/assets/app.css?v={{ASSET_V}}">
+<style>
+/* Отключаем случайное выделение текста на публичной странице доната. */
+html, body, body * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Поля ввода и элементы редактирования сохраняют обычное выделение и копирование. */
+input, textarea, select, [contenteditable="true"], [contenteditable=""], .addr {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+</style>
 </head>
 <body>
 <a class="skip" href="#main">К форме доната</a>
