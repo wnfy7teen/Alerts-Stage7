@@ -91,7 +91,7 @@ def test_header_always_shows_streamer_social_icons(client, monkeypatch):
     assert 'href="https://www.twitch.tv/vanesso4kaaa"' in header
     assert 'aria-label="Twitch"' in header and 'class="social-link social-twitch"' in header
     assert 'href="https://t.me/vanesso44ka"' in header
-    assert 'aria-label="Telegram"' in header and 'class="social-telegram"' in header
+    assert 'aria-label="Telegram"' in header and 'class="social-link social-telegram"' in header
     assert '<span class="sr-only">Twitch</span>' in header
     assert '<span class="sr-only">Telegram</span>' in header
     assert 'href="https://www.youtube.com/@unrelated"' not in header
