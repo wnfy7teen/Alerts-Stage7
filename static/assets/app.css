@@ -240,7 +240,8 @@ footer.site { max-width: 75rem; margin: var(--sp-7) auto 0; padding-top: var(--s
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
   .tick circle, .tick path { stroke-dashoffset: 0; }
-  .spin { animation: none; border-top-color: var(--c-line); border-style: dotted; }
+  /* Индикатор ожидания оплаты остаётся видимым даже при системном reduced-motion. */
+  .spin { animation: spin 1.6s linear infinite !important; border-top-color: var(--c-link); border-style: solid; }
   #confetti { display: none; }
   .cyber-cursor { animation: none; }
 }

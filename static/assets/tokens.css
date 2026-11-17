@@ -5,7 +5,7 @@
 @font-face { font-family: "Unbounded"; src: url("fonts/unbounded-v1.woff2") format("woff2"); font-weight: 600 800; font-style: normal; font-display: swap; }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* бренд */
   --brand-blue: #0593C6;
@@ -53,30 +53,4 @@
   --shadow-1: 0 1px 2px rgba(10, 47, 66, 0.06), 0 6px 20px rgba(10, 47, 66, 0.07);
   --shadow-2: 0 10px 36px rgba(10, 47, 66, 0.14);
   --tap: 2.75rem;                /* минимальная цель нажатия 44px */
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --c-bg: #071C28;
-    --c-surface: #0D2A3A;
-    --c-surface-soft: #123547;
-    --c-pink: #4A2A3A;
-    --c-pink-soft: #2A2030;
-    --c-line: #1E4357;
-    --c-outline: #9FD8EE;
-    --c-control: #5F8799;
-    --c-ink: #EAF6FB;
-    --c-ink-muted: #A9C6D3;
-    --c-brand: #4FC1EA;
-    --c-action: #4FC1EA;
-    --c-action-hover: #7AD3F1;
-    --c-on-action: #04202D;
-    --c-link: #58C4EC;
-    --c-focus: #58C4EC;
-    --c-success: #6FD79B;  --c-success-bg: #0F2F22;
-    --c-error: #FF8F86;    --c-error-bg: #3A1F27;
-    --c-warning: #F2B24D;  --c-warning-bg: #33280F;
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
-    --shadow-2: 0 10px 36px rgba(0, 0, 0, 0.4);
-  }
 }
