@@ -211,6 +211,10 @@ footer.site { max-width: 75rem; margin: var(--sp-7) auto 0; padding-top: var(--s
 .faq-answer p { max-width: var(--measure); margin: 0; padding: 0 var(--sp-5) var(--sp-4) var(--sp-1); color: var(--c-ink-muted); }
 .hero .sub { margin-top: var(--sp-3); font-weight: 700; color: var(--c-ink-muted); }
 
+/* Контактные ссылки в подписи разработчика — белые для лучшей читаемости. */
+.credits .credits-mail,
+.credits .cyber-text { color: #FCFFFF; }
+
 /* ───── подпись разработчика внизу: «ночной» блок с неоновой ссылкой на Telegram ───── */
 .credits { position: relative; overflow: hidden; isolation: isolate; margin-top: var(--sp-6); padding: var(--sp-5); display: grid; gap: var(--sp-2);
   background: var(--c-night); color: var(--c-night-ink); border: 2px solid var(--c-outline); border-radius: var(--r-l); box-shadow: var(--hard-md) var(--c-pink); }
