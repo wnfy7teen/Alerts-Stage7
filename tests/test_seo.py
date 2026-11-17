@@ -82,6 +82,23 @@ def test_html_is_complete_without_javascript(page):
     assert "Минимум 50 ₽" in body and "Частые вопросы" in body
 
 
+def test_header_always_shows_streamer_social_icons(client, monkeypatch):
+    # Header socials are fixed streamer profiles and must not depend on SAME_AS,
+    # which remains the source for SEO sameAs and optional footer links.
+    monkeypatch.setenv("SAME_AS", "https://www.youtube.com/@unrelated")
+    html = client.get("/").text
+    header = html.split("</header>", 1)[0]
+    assert 'href="https://www.twitch.tv/vanesso4kaaa"' in header
+    assert 'aria-label="Twitch"' in header and 'class="social-link social-twitch"' in header
+    assert 'href="https://t.me/vanesso44ka"' in header
+    assert 'aria-label="Telegram"' in header and 'class="social-link social-telegram"' in header
+    assert '<span class="sr-only">Twitch</span>' in header
+    assert '<span class="sr-only">Telegram</span>' in header
+    assert 'href="https://www.youtube.com/@unrelated"' not in header
+    # Developer contact in the footer is intentionally unchanged.
+    assert 'href="https://t.me/web3ResearchCN"' in html
+
+
 def test_title_description_canonical(page):
     _, p = page
     assert len(p.meta["title"]) <= 60 and "vanesso4ka" in p.meta["title"]
