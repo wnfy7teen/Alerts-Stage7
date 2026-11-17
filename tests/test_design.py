@@ -17,7 +17,7 @@ def variables(block: str) -> dict[str, str]:
 
 
 LIGHT = variables(TOKENS.split("@media (prefers-color-scheme: dark)")[0])
-DARK = {**LIGHT, **variables(TOKENS.split("@media (prefers-color-scheme: dark)")[1])}
+DARK = LIGHT  # публичный интерфейс всегда остаётся светлым, независимо от системной темы
 
 
 def luminance(h: str) -> float:
@@ -83,7 +83,8 @@ def test_tap_target_and_measure_tokens():
 def test_css_has_accessibility_features():
     for needle in ("prefers-reduced-motion: reduce", ":focus-visible", "forced-colors: active", ".sr-only", ".skip"):
         assert needle in APP_CSS, needle
-    assert "prefers-color-scheme: dark" in TOKENS
+    assert "prefers-color-scheme: dark" not in TOKENS
+    assert "color-scheme: light;" in TOKENS
 
 
 def test_fonts_are_self_hosted_and_swap():
