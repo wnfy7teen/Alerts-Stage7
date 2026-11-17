@@ -123,12 +123,12 @@ def top_links_html() -> str:
         'aria-label="Twitch" title="Twitch" target="_blank" rel="noopener noreferrer">'
         '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
         '<path d="M4 3 2.5 6.5V20h5v3l3-3h4l7-7V3H4Zm15 9.5-4 4h-4l-2.5 2.5V16H5V5h14v7.5ZM15 7v5h2V7h-2Zm-5 0v5h2V7h-2Z"/></svg>'
-        '<span class="sr-only">Twitch</span></a></li>'
+        '<span class="social-label">Twitch</span><span class="sr-only">Twitch</span></a></li>'
         '<li><a class="social-link social-telegram" href="https://t.me/vanesso44ka" '
         'aria-label="Telegram" title="Telegram" target="_blank" rel="noopener noreferrer">'
         '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
         '<path d="M21.7 3.3 18.5 20c-.2 1.2-.9 1.5-1.8.9l-5-3.7-2.4 2.3c-.3.3-.6.6-1.2.6l.4-5.1 9.3-8.4c.4-.4-.1-.6-.6-.2L5.7 13.7.8 12.2c-1.1-.3-1.1-1 .2-1.5L20.1 3.2c.9-.3 1.8.2 1.6 1.1Z"/></svg>'
-        '<span class="sr-only">Telegram</span></a></li>'
+        '<span class="social-label">Telegram</span><span class="sr-only">Telegram</span></a></li>'
         '</ul></nav>'
     )
 

@@ -39,15 +39,18 @@ img, svg { max-width: 100%; }
   background: var(--c-surface); color: var(--c-ink); font-weight: 700; text-decoration: none; }
 .toplinks a:hover { background: var(--c-pink); }
 .social-nav { margin-left: auto; }
-.toplinks .social-link { width: var(--tap); min-width: var(--tap); height: var(--tap); min-height: var(--tap); padding: 0;
-  justify-content: center; border-radius: 50%; color: var(--c-ink); transition: background-color 160ms ease, transform 160ms ease; }
-.toplinks .social-link svg { display: block; width: 1.25rem; height: 1.25rem; fill: currentColor; }
+.toplinks .social-link { min-width: var(--tap); min-height: var(--tap); padding: 0 var(--sp-3);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); border-radius: 999px;
+  color: var(--c-ink); transition: background-color 160ms ease, transform 160ms ease; }
+.toplinks .social-link svg { display: block; flex: 0 0 auto; width: 1.25rem; height: 1.25rem; fill: currentColor; }
+.toplinks .social-label { font-size: 0.875rem; font-weight: 700; line-height: 1; }
 .toplinks .social-link:hover { background: var(--c-pink); transform: translateY(-1px); }
 .toplinks .social-telegram svg { width: 1.3rem; height: 1.3rem; }
 @media (max-width: 30em) {
   .social-nav { margin-left: auto; }
   .toplinks { gap: var(--sp-1); }
-  .toplinks .social-link { width: 2.75rem; min-width: 2.75rem; height: 2.75rem; }
+  .toplinks .social-link { min-width: 2.75rem; min-height: 2.75rem; padding: 0 var(--sp-2); gap: var(--sp-1); }
+  .toplinks .social-label { font-size: 0.75rem; }
 }
 
 /* ───── шапка страницы ───── */
