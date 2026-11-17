@@ -81,6 +81,7 @@ def test_tap_target_and_measure_tokens():
 
 
 def test_css_has_accessibility_features():
+    assert re.search(r"\.spin\s*\{[^}]*animation:\s*spin\s+1\.6s\s+linear\s+infinite\s*!important", APP_CSS)
     for needle in ("prefers-reduced-motion: reduce", ":focus-visible", "forced-colors: active", ".sr-only", ".skip"):
         assert needle in APP_CSS, needle
     assert "prefers-color-scheme: dark" not in TOKENS
