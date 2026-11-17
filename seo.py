@@ -119,7 +119,7 @@ def top_links_html() -> str:
     """Постоянные публичные соцсети стримера в шапке; не зависят от SAME_AS."""
     return (
         '<nav class="social-nav" aria-label="Социальные сети стримера"><ul class="toplinks">'
-        '<li><a class="social-link social-twitch" href="https://www.twitch.tv/vanesso4kaa" '
+        '<li><a class="social-link social-twitch" href="https://www.twitch.tv/vanesso4kaaa" '
         'aria-label="Twitch" title="Twitch" target="_blank" rel="noopener noreferrer">'
         '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
         '<path d="M4 3 2.5 6.5V20h5v3l3-3h4l7-7V3H4Zm15 9.5-4 4h-4l-2.5 2.5V16H5V5h14v7.5ZM15 7v5h2V7h-2Zm-5 0v5h2V7h-2Z"/></svg>'
