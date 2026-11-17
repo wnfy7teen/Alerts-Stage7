@@ -81,7 +81,9 @@ jobs:
               "${URL}" -o "${OUT}"
             for EXPECTED in \
               'DESIGNED &amp; DEVELOPED BY' \
-              'Krisofer Biksan' \
+              'Kristofer Biksan' \
+              'https://www.twitch.tv/vanesso4kaaa' \
+              'https://t.me/vanesso44ka' \
               'Web Developer · Technical Support' \
               'mailto:usdtuser1@proton.me' \
               'https://t.me/web3ResearchCN' \
@@ -91,7 +93,11 @@ jobs:
                 exit 1
               fi
             done
-            echo "${HOST}: expected developer footer verified."
+            if grep -Fq 'Krisofer Biksan' "${OUT}"; then
+              echo "::error::${HOST} still serves misspelled developer name."
+              exit 1
+            fi
+            echo "${HOST}: expected developer footer and social links verified."
           done
 
       - name: Verify public application health endpoint
