@@ -88,7 +88,7 @@ def test_header_always_shows_streamer_social_icons(client, monkeypatch):
     monkeypatch.setenv("SAME_AS", "https://www.youtube.com/@unrelated")
     html = client.get("/").text
     header = html.split("</header>", 1)[0]
-    assert 'href="https://www.twitch.tv/vanesso4kaaa"' in header
+    assert 'href="https://www.twitch.tv/vanesso4kaaaa"' in header
     assert 'aria-label="Twitch"' in header and 'class="social-link social-twitch"' in header
     assert 'href="https://t.me/vanesso44ka"' in header
     assert 'aria-label="Telegram"' in header and 'class="social-telegram"' in header
