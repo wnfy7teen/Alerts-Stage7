@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -21,12 +20,6 @@ def main() -> int:
     if key != KEY_FILE.stem:
         raise SystemExit("IndexNow key file name/content mismatch")
 
-    payload = json.dumps({
-        "host": HOST,
-        "key": key,
-        "keyLocation": f"https://{HOST}/{key}.txt",
-        "urlList": [URL],
-    }).encode("utf-8")
     try:
         response = httpx.post(
             ENDPOINT,
