@@ -231,3 +231,11 @@ def test_admin_obs_link_uses_public_url(client):
     assert r.status_code == 200
     assert r.json()["overlay"] == "https://example.test/overlay?key=overlay-key-test-0123456789"
     assert "localhost" not in r.json()["overlay"]
+
+
+
+def test_indexnow_key_file_is_public_and_exact(client):
+    response = client.get("/5ea344e2aa92cfda21c202a64fd75638.txt")
+    assert response.status_code == 200
+    assert response.text == "5ea344e2aa92cfda21c202a64fd75638"
+    assert response.headers["content-type"].startswith("text/plain")
