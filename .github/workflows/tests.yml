@@ -45,6 +45,7 @@ jobs:
       group: donation-alerts-production
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v4
       - name: Configure SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -207,3 +208,12 @@ jobs:
           assert {"WebSite", "Person", "WebPage"} <= kinds, "JSON-LD graph is missing core entity types"
           print("SEO smoke checks passed: robots, sitemap XML, llms.txt, canonical metadata and JSON-LD.")
           PY
+
+      - name: Notify IndexNow after successful production deploy
+        run: |
+          set -euo pipefail
+          KEY="5ea344e2aa92cfda21c202a64fd75638"
+          curl --fail --location --silent --show-error \
+            "https://vanesso4ka.site/${KEY}.txt" -o /tmp/indexnow-key.txt
+          test "$(cat /tmp/indexnow-key.txt)" = "$KEY"
+          python scripts/indexnow_submit.py
