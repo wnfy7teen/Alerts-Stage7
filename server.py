@@ -527,6 +527,12 @@ def yandex_verification():
     return static_asset("yandex_f635b5b1368c3ec6.html", "text/html; charset=utf-8")
 
 
+@app.get("/5ea344e2aa92cfda21c202a64fd75638.txt")
+def indexnow_key():
+    """Публичный ключевой файл подтверждения IndexNow."""
+    return static_asset("5ea344e2aa92cfda21c202a64fd75638.txt", "text/plain; charset=utf-8")
+
+
 @app.get("/overlay")
 def overlay_page(req: Request):
     return html_page("overlay.html", "overlay", req)
