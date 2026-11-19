@@ -6,8 +6,8 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+
+import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 KEY_FILE = ROOT / "static" / "5ea344e2aa92cfda21c202a64fd75638.txt"
@@ -27,21 +27,26 @@ def main() -> int:
         "keyLocation": f"https://{HOST}/{key}.txt",
         "urlList": [URL],
     }).encode("utf-8")
-    request = Request(
-        ENDPOINT,
-        data=payload,
-        headers={"Content-Type": "application/json; charset=utf-8"},
-        method="POST",
-    )
     try:
-        with urlopen(request, timeout=15) as response:
-            status = response.status
-            print(f"IndexNow accepted submission: HTTP {status}")
-            return 0 if status in (200, 202) else 1
-    except HTTPError as error:
-        print(f"IndexNow rejected submission: HTTP {error.code}", file=sys.stderr)
-        return 1
-    except (TimeoutError, URLError, OSError) as error:
+        response = httpx.post(
+            ENDPOINT,
+            json={
+                "host": HOST,
+                "key": key,
+                "keyLocation": f"https://{HOST}/{key}.txt",
+                "urlList": [URL],
+            },
+            timeout=15.0,
+        )
+        if response.status_code not in (200, 202):
+            print(
+                f"IndexNow rejected submission: HTTP {response.status_code}",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"IndexNow accepted submission: HTTP {response.status_code}")
+        return 0
+    except httpx.HTTPError as error:
         print(f"IndexNow request failed: {type(error).__name__}", file=sys.stderr)
         return 1
 
